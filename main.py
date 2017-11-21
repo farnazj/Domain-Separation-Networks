@@ -1,7 +1,7 @@
 import argparse, sys, os, torch, datetime, pdb
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
-import data.dataset_utils as data_utils
+import data.data_utils as data_utils
 import models.model_utils as model_utils
 import train.train_utils as train_utils
 import cPickle as pickle
