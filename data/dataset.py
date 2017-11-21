@@ -51,7 +51,8 @@ class AskUbuntuDataset(data.Dataset):
             pad(body, body_len)
             qarr.append([title, body])
 
-        return {'x': qarr, 'y': 1}
+        #return {'x': qarr, 'y': 1}
+        return qarr   #we do not need y
 
     def __len__(self):
         return len(self.dataset)
