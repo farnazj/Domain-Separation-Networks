@@ -3,7 +3,8 @@ import torch.utils.data as data
 
 def pad(arr, l):
     if len(arr) < l:
-        arr.append(0)
+        while len(arr) < l:
+            arr.append(0)
 
 class AskUbuntuDataset(data.Dataset):
     def __init__(self, path, id2data, max_title, max_body):
