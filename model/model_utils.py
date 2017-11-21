@@ -56,6 +56,7 @@ class LSTM(nn.Module):
         output_title, h_n_title = self.lstm(input_x_titles, (h0, c0))
         output_body, h_n_body = self.lstm(input_x_bodies, (h0, c0))
 
+        #reshape the hidden layers
         return (output_title + output_body)/2
 
 
@@ -87,7 +88,11 @@ class CNN(nn.Module):
         #conv receives batch_size * input size* sequence_length (e.g. 16 questions, each having 10 words,
         #each word having an embedding of size sequence_length)
 
-        output_titles = F.max_pool1d(F.tanh(self.conv1(input_x_titles)), 1)
-        output_bodies = F.max_pool1d(F.tanh(self.conv1(input_x_bodies)), 1)
+        #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
+        #to batch_size * hidden_size * 1, may want to squeeze later
+        output_titles = F.max_pool1d(F.tanh(self.conv1(input_x_titles)), 3)
+        output_bodies = F.max_pool1d(F.tanh(self.conv1(input_x_bodies)), 3)
+
+        #reshape the hidden layers
 
         return (output_title + output_body)/2
