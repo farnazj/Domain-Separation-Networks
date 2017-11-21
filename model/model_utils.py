@@ -31,7 +31,6 @@ class LSTM(nn.Module):
         vocab_size, embed_dim = embeddings.shape
 
         self.embed_dim = embed_dim
-
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
@@ -70,7 +69,6 @@ class CNN(nn.Module):
         vocab_size, embed_dim = embeddings.shape
 
         self.embed_dim = embed_dim
-
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
@@ -90,8 +88,8 @@ class CNN(nn.Module):
 
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
         #to batch_size * hidden_size * 1, may want to squeeze later
-        output_titles = F.max_pool1d(F.tanh(self.conv1(input_x_titles)), 3)
-        output_bodies = F.max_pool1d(F.tanh(self.conv1(input_x_bodies)), 3)
+        output_titles = F.adaptive_avg_pool1d(F.tanh(self.conv1(input_x_titles)), 1)
+        output_bodies = F.adaptive_avg_pool1d(F.tanh(self.conv1(input_x_bodies)), 1)
 
         #reshape the hidden layers
 
