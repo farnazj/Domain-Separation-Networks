@@ -74,7 +74,13 @@ class CNN(nn.Module):
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.conv1 = nn.Conv1d(feature_size, self.args.hidden_size, kernel_size = 3)
+        _out = 16 #must be a power of 2
+        #TODO _out is a hyperparam - needs to be optimized on dev data
+        #TODO make CNN deeper
+        #use 2d instead of 1d
+        #input channel must be 1, since text does not have multiple channels
+
+        self.conv2 = nn.Conv2d(1, _out, kernel_size = 3)
 
     def forward(self, x_index):
         #x_indx.view(-1,2,sequence_length, feature_size)
@@ -90,8 +96,8 @@ class CNN(nn.Module):
 
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
         #to batch_size * hidden_size * 1, may want to squeeze later
-        output_titles = F.max_pool1d(F.tanh(self.conv1(input_x_titles)), 3)
-        output_bodies = F.max_pool1d(F.tanh(self.conv1(input_x_bodies)), 3)
+        output_titles = F.max_pool2d(F.tanh(self.conv1(input_x_titles)), 3)
+        output_bodies = F.max_pool2d(F.tanh(self.conv1(input_x_bodies)), 3)
 
         #reshape the hidden layers
 
