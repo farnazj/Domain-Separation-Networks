@@ -48,9 +48,9 @@ class AskUbuntuDataset(data.Dataset):
             title, body = self.id2data[np]
             pad(title, title_len)
             pad(body, body_len)
+            qarr.append([title, body])
 
-
-
+        return {'x': qarr, 'y': 1}
 
     def __len__(self):
         return len(self.dataset)
