@@ -37,10 +37,11 @@ def getId2Data(word2idx):
             max_title = len(title) if self.title_dim < len(title)
             max_body = len(body) if self.body_dim < len(body)
 
-            title2iarr = [self.word2idx[x] if x in self.word2idx else 0 for x in title]
-            body2iarr = [self.word2idx[x] if x in self.word2idx else 0 for x in body]
+            title2iarr = [self.word2idx[x] if x in self.word2idx for x in title]
+            body2iarr = [self.word2idx[x] if x in self.word2idx for x in body]
 
-            id2data[qid] = (title2iarr, body2iarr)
+            if len(title2iarr) != 0 and len(body2iarr) != 0:
+                id2data[qid] = (title2iarr, body2iarr)
 
     return id2data, max_title, max_body
 
