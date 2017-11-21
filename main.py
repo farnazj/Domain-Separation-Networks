@@ -1,16 +1,10 @@
-import argparse
-import sys
+import argparse, sys, os, torch, datetime, pdb
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 import data.dataset_utils as data_utils
 import models.model_utils as model_utils
 import train.train_utils as train_utils
-import os
-import torch
-import datetime
 import cPickle as pickle
-import pdb
-
 
 
 parser = argparse.ArgumentParser(description='Question Retrieval')
@@ -42,7 +36,7 @@ if __name__ == '__main__':
     for attr, value in sorted(args.__dict__.items()):
         print("\t{}={}".format(attr.upper(), value))
 
-    train_data, dev_data, embeddings = data_utils.load_dataset(args)
+    train_data, dev_data, test_data, embeddings = data_utils.load_dataset(args)
 
     # model
     if args.snapshot is None:
@@ -55,8 +49,6 @@ if __name__ == '__main__':
             print("Sorry, This snapshot doesn't exist."); exit()
     print(model)
 
-    #print()
-    # train
     if args.train :
         train_utils.train_model(train_data, dev_data, model, args)
     if args.test:
