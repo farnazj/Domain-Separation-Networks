@@ -3,11 +3,11 @@ import data.dataset as dataset
 import gzip
 import tqdm
 
-PATH_EMB = "../askubuntu/vector/vectors_pruned.200.txt.gz"
-PATH_TEXT = "../askubuntu/text_tokenized.txt.gz"
-PATH_DEV = "../askubuntu/dev.txt"
-PATH_TEST = "../askubuntu/test.txt"
-PATH_TRAIN = "../askubuntu/train_random.txt"
+PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
+PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
+PATH_DEV = "./askubuntu/dev.txt"
+PATH_TEST = "./askubuntu/test.txt"
+PATH_TRAIN = "./askubuntu/train_random.txt"
 
 EMB_LEN = 200
 

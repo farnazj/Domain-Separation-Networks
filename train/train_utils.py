@@ -46,6 +46,7 @@ def run_epoch(data, is_training, model, optimizer, args):
         num_workers=args.num_workers,
         drop_last=True)
 
+    exit(1) 
     losses = []
 
     if is_training:
