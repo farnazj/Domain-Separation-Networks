@@ -14,7 +14,7 @@ def get_model(embeddings, args):
     print("\nBuilding model...")
 
     if args.model_name == 'cnn':
-        return CNN(embeddings, args, feature_size)
+        return CNN(embeddings, args)
     elif args.model_name == 'lstm':
         return LSTM(embeddings, args)
     else:
@@ -24,7 +24,7 @@ def get_model(embeddings, args):
 
 class LSTM(nn.Module):
 
-    def __init__(self, embeddings, args, feature_size):
+    def __init__(self, embeddings, args):
         super(LSTM, self).__init__()
 
         self.args = args
@@ -34,7 +34,7 @@ class LSTM(nn.Module):
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.lstm = nn.LSTM(input_size=feature_size, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -62,7 +62,7 @@ class LSTM(nn.Module):
 
 class CNN(nn.Module):
 
-    def __init__(self, embeddings, args, feature_size):
+    def __init__(self, embeddings, args):
         super(CNN, self).__init__()
 
         self.args = args
@@ -72,7 +72,7 @@ class CNN(nn.Module):
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.conv1 = nn.Conv1d(feature_size, self.args.hidden_size, kernel_size = 3)
+        self.conv1 = nn.Conv1d(embed_dim, self.args.hidden_size, kernel_size = 3)
 
     def forward(self, x_index):
         #x_indx.view(-1,2,sequence_length, feature_size)
