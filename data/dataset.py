@@ -1,4 +1,5 @@
 import data_utils as du
+import torch
 import gzip
 import tqdm
 import torch.utils.data as data
@@ -12,7 +13,7 @@ class AskUbuntuDataset(data.Dataset):
     def __init__(self, path, id2data, max_title, max_body):
         self.path = path
         self.dataset = []
-        self.id2data = {}
+        self.id2data = id2data
         self.title_dim = max_title
         self.body_dim = max_body
 
@@ -31,7 +32,6 @@ class AskUbuntuDataset(data.Dataset):
                     sample = self.createSample(q, p, negs, max_title, max_body)
                     if sample != None:
                         self.dataset.append(sample)
-
 
     def createSample(self, q, p, negs, title_len, body_len):
         qarr = []
