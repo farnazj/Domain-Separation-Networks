@@ -1,4 +1,5 @@
 import numpy as np
+import data.dataset as dataset
 import gzip
 import tqdm
 
@@ -34,11 +35,13 @@ def getId2Data(word2idx):
             title = qtitle.split()
             body = qbody.split()
 
-            max_title = len(title) if self.title_dim < len(title)
-            max_body = len(body) if self.body_dim < len(body)
+            if max_title < len(title):
+                max_title = len(title)
+            if max_body < len(body):
+                max_body = len(body)
 
-            title2iarr = [self.word2idx[x] if x in self.word2idx for x in title]
-            body2iarr = [self.word2idx[x] if x in self.word2idx for x in body]
+            title2iarr = [word2idx[x] for x in title if x in word2idx]
+            body2iarr = [word2idx[x] for x in body if x in word2idx]
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
                 id2data[qid] = (title2iarr, body2iarr)
@@ -51,7 +54,7 @@ def loadDataset(args):
     embedding_tensor, word2idx = getEmbeddingTensor()
     id2data, max_title, max_body = getId2Data(word2idx)
 
-    args.embedding_dim = embeddings.shape[1]
+    args.embedding_dim = embedding_tensor.shape[1]
 
     train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body)
     dev_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body)

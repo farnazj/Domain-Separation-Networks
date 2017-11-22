@@ -2,7 +2,7 @@ import argparse, sys, os, torch, datetime, pdb
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 import data.data_utils as data_utils
-import models.model_utils as model_utils
+import model.model_utils as model_utils
 import train.train_utils as train_utils
 import cPickle as pickle
 
@@ -36,7 +36,9 @@ if __name__ == '__main__':
     for attr, value in sorted(args.__dict__.items()):
         print("\t{}={}".format(attr.upper(), value))
 
-    train_data, dev_data, test_data, embeddings = data_utils.load_dataset(args)
+    train_data, dev_data, test_data, embeddings = data_utils.loadDataset(args)
+
+    exit(1)
 
     # model
     if args.snapshot is None:
