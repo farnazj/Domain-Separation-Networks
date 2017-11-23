@@ -3,19 +3,21 @@ import data.dataset as dataset
 import gzip
 import tqdm
 
-'''
+
 PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
 PATH_DEV = "./askubuntu/dev.txt"
 PATH_TEST = "./askubuntu/test.txt"
 PATH_TRAIN = "./askubuntu/train_random.txt"
-'''
 
+
+'''
 PATH_EMB = "./askubuntu_test/vector/vectors_pruned.200.txt.gz"
 PATH_TEXT = "./askubuntu_test/text_tokenized.txt.gz"
 PATH_DEV = "./askubuntu_test/dev.txt"
 PATH_TEST = "./askubuntu_test/test.txt"
 PATH_TRAIN = "./askubuntu_test/train_random.txt"
+'''
 
 EMB_LEN = 200
 MAX_BODY_LEN = 500
@@ -38,8 +40,7 @@ def getId2Data(word2idx):
     id2data = {}
     max_title = 0
     max_body = 0
-    # average body length 121, largest 6336
-    # 164200 < 500 words 3565 more
+
 
     with gzip.open(PATH_TEXT) as gfile:
         for line in tqdm.tqdm(gfile):
@@ -48,22 +49,26 @@ def getId2Data(word2idx):
             body = qbody.split()
 
             title2iarr = [word2idx[x] for x in title if x in word2idx]
+            #body2iarr = [word2idx[x] for x in body if x in word2idx]
+
             body2iarr = []
 
-            for i, word in enumerate(body):
+            count = 0
+            for word in body:
                 if word in word2idx:
-                    if i <= MAX_BODY_LEN:
-                        body2iarr.append(word2idx[word])
+                    if count >= MAX_BODY_LEN:
+                        break
+                    body2iarr.append(word2idx[word])
+                    count += 1
+
 
             if max_title < len(title2iarr):
                 max_title = len(title2iarr)
-            if max_body < len(body2iarr):   #for 500 limit max body is 489
-                max_body = len(body2iarr)
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
                 id2data[qid] = (title2iarr, body2iarr)
 
-    return id2data, max_title, max_body
+    return id2data, max_title, MAX_BODY_LEN
 
 
 def loadDataset(args):
