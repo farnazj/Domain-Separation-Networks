@@ -57,7 +57,7 @@ def run_epoch(data, is_training, model, optimizer, args):
     print "here1"
     for batch in tqdm(data_loader):
 
-        print "here2"
+
         cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
         criterion = nn.MultiMarginLoss(p=1, margin=1, size_average=True)
         #pdb.set_trace()
@@ -65,6 +65,8 @@ def run_epoch(data, is_training, model, optimizer, args):
         if is_training:
             optimizer.zero_grad()
 
+        print "here2"
+        
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
         bodies = autograd.Variable(batch['bodies'])
         out_bodies = model(bodies)
