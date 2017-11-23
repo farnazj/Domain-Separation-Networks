@@ -53,13 +53,12 @@ class LSTM(nn.Module):
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
-        output, h_n = self.lstm(embeddings, (h0, c0))
+        output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
         #reshape the hidden layers
-        print "1st out"
-        print output
-        #output = output.view(*(x_index.size() + (self.args.hd_size,)))
+        h_n = h_n.squeeze(0)
+        result = h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
-        return output
+        return result
 
 
 
@@ -80,20 +79,24 @@ class CNN(nn.Module):
     def forward(self, x_index):
         #x_indx.view(-1,2,sequence_length, feature_size)
         #x_indx.squeeze()
-        titles_indices = x_index[:,1:]
-        bodies_indices = x_index[:,:1]
+        #titles_indices = x_index[:,1:]
+        #bodies_indices = x_index[:,:1]
 
-        input_x_titles = self.embedding_layer(titles_indices)
-        bodies_x_titles = self.embedding_layer(bodies_indices)
+        print x_index.data.shape[2]
+        reshaped_indices = x_index.view(-1, x_index.data.shape[2])
 
+        new_batch_size = reshaped_indices.data.shape[0]
+
+        embeddings = self.embedding_layer(reshaped_indices)
         #conv receives batch_size * input size* sequence_length (e.g. 16 questions, each having 10 words,
         #each word having an embedding of size sequence_length)
 
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
         #to batch_size * hidden_size * 1, may want to squeeze later
-        output_titles = F.adaptive_avg_pool1d(F.tanh(self.conv1(input_x_titles)), 1)
-        output_bodies = F.adaptive_avg_pool1d(F.tanh(self.conv1(input_x_bodies)), 1)
+        output = F.adaptive_avg_pool1d(F.tanh(self.conv1(embeddings)), 1)
 
         #reshape the hidden layers
+        print output
+        exit(1)
 
-        return (output_title + output_body)/2
+        return output
