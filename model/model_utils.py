@@ -39,10 +39,6 @@ class LSTM(nn.Module):
 
 
     def forward(self, x_index):
-        #x_index.view(-1,2,sequence_length, feature_size)
-        #x_index.squeeze()
-        #titles_indices = x_index[:,1:]
-        #bodies_indices = x_index[:,:1]
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
 
@@ -54,8 +50,9 @@ class LSTM(nn.Module):
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
-        #reshape the hidden layers
+        #lose the dimension of size 1
         h_n = h_n.squeeze(0)
+        #reshape the hidden layers
         result = h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
         return result
@@ -74,29 +71,29 @@ class CNN(nn.Module):
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.conv1 = nn.Conv1d(embed_dim, self.args.hidden_size, kernel_size = 3)
+        self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3)
 
     def forward(self, x_index):
-        #x_indx.view(-1,2,sequence_length, feature_size)
-        #x_indx.squeeze()
-        #titles_indices = x_index[:,1:]
-        #bodies_indices = x_index[:,:1]
 
-        print x_index.data.shape[2]
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
-
         new_batch_size = reshaped_indices.data.shape[0]
-
         embeddings = self.embedding_layer(reshaped_indices)
+        #now embeddings is of the form: batchsize * sequence_length * embedding dimension
+        #input to conv1d should be of the form batchsize * embedding dimension * sequence_length
+        embeddings = embeddings.permute(0,2,1)
+
         #conv receives batch_size * input size* sequence_length (e.g. 16 questions, each having 10 words,
         #each word having an embedding of size sequence_length)
 
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
-        #to batch_size * hidden_size * 1, may want to squeeze later
+        #to batch_size * hidden_size * 1
         output = F.adaptive_avg_pool1d(F.tanh(self.conv1(embeddings)), 1)
 
-        #reshape the hidden layers
-        print output
-        exit(1)
+        #lose the dimension of size 1
+        output = output.squeeze(2)
+
+        #reshape back the hidden layers
+        output = output.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+
 
         return output
