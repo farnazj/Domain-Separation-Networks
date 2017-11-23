@@ -54,9 +54,10 @@ def run_epoch(data, is_training, model, optimizer, args):
     else:
         model.eval()
 
-    print "here"
+    print "here1"
     for batch in tqdm(data_loader):
 
+        print "here2"
         cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
         criterion = nn.MultiMarginLoss(p=1, margin=1, size_average=True)
         #pdb.set_trace()
@@ -76,15 +77,40 @@ def run_epoch(data, is_training, model, optimizer, args):
         print out_titles
         hidden_rep = (out_bodies + out_titles)/2
 
-        #TODO Calculate cosine similarities here and construct X_scores
+        #Calculate cosine similarities here and construct X_scores
+        #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
 
+        query_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
+        pos_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
 
+        for i in range(hidden_rep.size(0)):
+            query_tensor[i] = hidden_rep[i, 0, ]
+            pos_tensor[i] = hidden_rep[i, 1, ]
+
+        #cosine similarities query vs pos
+        cs = cosine_similarity(query_tensor, pos_tensor)
+
+        cs_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(1))
+
+        for i in range(hidden_rep.size(0)):
+            cs_tensor[i][0] = cs[i]
+
+        #calculate cosine similarity for every query vs. neg q pair
+        k = 1
+        for j in range(2, hidden_rep.size(1)):
+            neg_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
+            for i in range(hidden_rep.size(0)):
+                neg_tensor[i] = hidden_rep[i, j, ]
+            cs = cosine_similarity(query_tensor, neg_tensor)
+            for c in range(hidden_rep.size(0)):
+                cs_tensor[c][k] = cs[i]
+            k+=1
 
         #X_scores of cosine similarities shold be of size [batch_size, num_questions]
         #y_targets should be all-zero vector of size [batch_size]
 
-        X_scores = torch.stack(score_list, 0)
-        y_targets = torch.zeros(X_scores.size(1)).type(torch.LongTensor)
+        X_scores = torch.stack(cs_tensor, 0)  #??
+        y_targets = torch.zeros(hidden_rep.size(0)).type(torch.LongTensor)
         loss = criterion(X_scores, y_targets)
 
 
