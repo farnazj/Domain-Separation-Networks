@@ -35,13 +35,13 @@ def getId2Data(word2idx):
             title = qtitle.split()
             body = qbody.split()
 
-            if max_title < len(title):
-                max_title = len(title)
-            if max_body < len(body):
-                max_body = len(body)
-
             title2iarr = [word2idx[x] for x in title if x in word2idx]
             body2iarr = [word2idx[x] for x in body if x in word2idx]
+
+            if max_title < len(title2iarr):
+                max_title = len(title2iarr)
+            if max_body < len(body2iarr):
+                max_body = len(body2iarr)
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
                 id2data[qid] = (title2iarr, body2iarr)
@@ -58,6 +58,16 @@ def loadDataset(args):
 
     train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body)
     dev_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body)
+    #test_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
+
+    return train_data, dev_data, embedding_tensor
+
+def loadTest(args):
+    print "\nLoading data..."
+    embedding_tensor, word2idx = getEmbeddingTensor()
+    #alternatively we could/had better save the embedding, max_title, max_body along with the model in a file
+    id2data, max_title, max_body = getId2Data(word2idx)
+    args.embedding_dim = embedding_tensor.shape[1]
     test_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
 
-    return train_data, dev_data, test_data, embedding_tensor
+    return test_data

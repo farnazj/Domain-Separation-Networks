@@ -2,6 +2,7 @@ import os, sys, torch, pdb, datetime
 import torch.autograd as autograd
 import torch.nn.functional as F
 import torch.utils.data as data
+import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 
@@ -45,7 +46,7 @@ def run_epoch(data, is_training, model, optimizer, args):
         shuffle=True,
         num_workers=args.num_workers,
         drop_last=True)
- 
+
     losses = []
 
     if is_training:
@@ -53,18 +54,28 @@ def run_epoch(data, is_training, model, optimizer, args):
     else:
         model.eval()
 
+    print "here"
     for batch in tqdm(data_loader):
 
         cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
         criterion = nn.MultiMarginLoss(p=1, margin=1, size_average=True)
-
-        x = autograd.Variable(batch)
+        #pdb.set_trace()
 
         if is_training:
             optimizer.zero_grad()
 
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
-        out = model(x)
+        bodies = autograd.Variable(batch['bodies'])
+        out_bodies = model(bodies)
+        print "body"
+        print out_bodies
+
+        titles = autograd.Variable(batch['titles'])
+        out_titles = model(titles)
+        print "title"
+        print out_titles
+        hidden_rep = (out_bodies + out_titles)/2
+
         #TODO Calculate cosine similarities here and construct X_scores
 
 

@@ -33,6 +33,7 @@ class AskUbuntuDataset(data.Dataset):
                     if sample != None:
                         self.dataset.append(sample)
 
+
     def createSample(self, q, p, negs, title_len, body_len):
         qarr = []
 
@@ -47,13 +48,14 @@ class AskUbuntuDataset(data.Dataset):
         pad(p_title, title_len)
         pad(p_body, body_len)
 
-        q_title = torch.LongTensor(q_title)
-        q_body = torch.LongTensor(q_body)
-        p_title = torch.LongTensor(p_body)
-        p_body = torch.LongTensor(p_body)
+        #q_title = torch.LongTensor(q_title)
+        #q_body = torch.LongTensor(q_body)
+        #p_title = torch.LongTensor(p_body)
+        #p_body = torch.LongTensor(p_body)
 
-        qarr.append([q_title, q_body])
-        qarr.append([p_title, p_body])
+        #qarr.append([q_title, q_body])
+        #qarr.append([p_title, p_body])
+        sample = {'titles': [q_title, p_title], 'bodies':[q_body, p_body]}
 
         count_negs = 0
         for np in negs:
@@ -62,13 +64,18 @@ class AskUbuntuDataset(data.Dataset):
             title, body = self.id2data[np]
             pad(title, title_len)
             pad(body, body_len)
-            qarr.append([title, body])
+            #qarr.append([title, body])
+            sample['titles'].append(title)
+            sample['bodies'].append(body)
             count_negs += 1
 
         if count_negs == 0:
             return None
         #return {'x': qarr, 'y': 1}
-        return qarr   #we do not need y
+
+        sample['titles'] = torch.LongTensor(sample['titles'])
+        sample['bodies'] = torch.LongTensor(sample['bodies'])
+        return sample  #we do not need y
 
     def __len__(self):
         return len(self.dataset)

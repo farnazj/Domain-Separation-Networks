@@ -37,7 +37,7 @@ if __name__ == '__main__':
     for attr, value in sorted(args.__dict__.items()):
         print("\t{}={}".format(attr.upper(), value))
 
-    train_data, dev_data, test_data, embeddings = data_utils.loadDataset(args)
+    train_data, dev_data, embeddings = data_utils.loadDataset(args)
 
     # model
     if args.snapshot is None:
@@ -54,4 +54,5 @@ if __name__ == '__main__':
         train_utils.train_model(train_data, dev_data, model, args)
     if args.test:
         pass
+        #loadtest
         #train_utils.test_model(test_data, model, args)

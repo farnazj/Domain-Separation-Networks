@@ -41,22 +41,25 @@ class LSTM(nn.Module):
     def forward(self, x_index):
         #x_index.view(-1,2,sequence_length, feature_size)
         #x_index.squeeze()
-        titles_indices = x_index[:,1:]
-        bodies_indices = x_index[:,:1]
+        #titles_indices = x_index[:,1:]
+        #bodies_indices = x_index[:,:1]
+        #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
+        reshaped_indices = x_index.view(-1, x_index.data.shape[2])
 
-        #new_batch_size = self.args.batch_size * sequence_length
+        new_batch_size = reshaped_indices.data.shape[0]
 
-        input_x_titles = self.embedding_layer(titles_indices)
-        bodies_x_titles = self.embedding_layer(bodies_indices)
+        embeddings = self.embedding_layer(reshaped_indices)
 
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
-        output_title, h_n_title = self.lstm(input_x_titles, (h0, c0))
-        output_body, h_n_body = self.lstm(input_x_bodies, (h0, c0))
-
+        output, h_n = self.lstm(embeddings, (h0, c0))
         #reshape the hidden layers
-        return (output_title + output_body)/2
+        print "1st out"
+        print output
+        #output = output.view(*(x_index.size() + (self.args.hd_size,)))
+
+        return output
 
 
 
