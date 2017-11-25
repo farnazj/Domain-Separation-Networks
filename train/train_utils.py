@@ -59,7 +59,7 @@ def run_epoch(data, is_training, model, optimizer, args):
         print "here"
 
         cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
-        criterion = nn.MultiMarginLoss(p=1, margin=1, size_average=True)
+        criterion = nn.MultiMarginLoss()
         #pdb.set_trace()
 
         if is_training:
@@ -79,32 +79,30 @@ def run_epoch(data, is_training, model, optimizer, args):
 
         cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
 
-        '''
-        for i in range(hidden_rep.size(0)):
-            query_tensor[i] = hidden_rep[i, 0, ]
-            pos_tensor[i] = hidden_rep[i, 1, ]
-
-        #cosine similarities query vs pos
-        cs = cosine_similarity(query_tensor, pos_tensor)
-        '''
-
         #calculate cosine similarity for every query vs. neg q pair
 
         for j in range(1, hidden_rep.size(1)):
             for i in range(hidden_rep.size(0)):
-                cs_tensor[i, j] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
-                print hidden_rep[i, 0, ].type(torch.FloatTensor)
-                print hidden_rep[i, j, ].type(torch.FloatTensor)
+                cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
+                #print hidden_rep[i, 0, ].type(torch.FloatTensor)
+                #print hidden_rep[i, j, ].type(torch.FloatTensor)
 
-        print cs_tensor
-        exit(1)
+        #print cs_tensor
+
         #X_scores of cosine similarities shold be of size [batch_size, num_questions]
         #y_targets should be all-zero vector of size [batch_size]
 
         X_scores = torch.stack(cs_tensor, 0)  #??
-        y_targets = torch.zeros(hidden_rep.size(0)).type(torch.LongTensor)
+        #print X_scores
+        #print X_scores.size()
+
+        y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
+        #print y_targets
+        #print y_targets.size()
+
         loss = criterion(X_scores, y_targets)
 
+        print loss
 
         if is_training:
             loss.backward()
