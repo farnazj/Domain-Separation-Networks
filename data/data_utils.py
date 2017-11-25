@@ -40,20 +40,22 @@ def getId2Data(word2idx):
             title2iarr = [word2idx[x] for x in title if x in word2idx]
             body2iarr = []
 
-            for i, word in enumerate(body):
+            count = 0
+            for word in body:
                 if word in word2idx:
-                    if i <= MAX_BODY_LEN:
-                        body2iarr.append(word2idx[word])
+                    if count >= MAX_BODY_LEN:
+                        break
+                    body2iarr.append(word2idx[word])
+                    count += 1
 
             if max_title < len(title2iarr):
                 max_title = len(title2iarr)
-            if max_body < len(body2iarr):
-                max_body = len(body2iarr)
+
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
                 id2data[qid] = (title2iarr, body2iarr)
 
-    return id2data, max_title, max_body
+    return id2data, max_title, MAX_BODY_LEN
 
 
 def loadDataset(args):
