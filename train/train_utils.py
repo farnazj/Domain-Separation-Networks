@@ -54,60 +54,50 @@ def run_epoch(data, is_training, model, optimizer, args):
     else:
         model.eval()
 
-    print "here1"
     for batch in tqdm(data_loader):
 
+        print "here"
 
-        cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
         criterion = nn.MultiMarginLoss(p=1, margin=1, size_average=True)
         #pdb.set_trace()
 
         if is_training:
             optimizer.zero_grad()
 
-        print "here2"
-        
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
         bodies = autograd.Variable(batch['bodies'])
         out_bodies = model(bodies)
-        print "body"
-        print out_bodies
-
         titles = autograd.Variable(batch['titles'])
         out_titles = model(titles)
-        print "title"
-        print out_titles
         hidden_rep = (out_bodies + out_titles)/2
+
+        print hidden_rep.size()
 
         #Calculate cosine similarities here and construct X_scores
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
 
-        query_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
-        pos_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
+        cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
 
+        '''
         for i in range(hidden_rep.size(0)):
             query_tensor[i] = hidden_rep[i, 0, ]
             pos_tensor[i] = hidden_rep[i, 1, ]
 
         #cosine similarities query vs pos
         cs = cosine_similarity(query_tensor, pos_tensor)
-
-        cs_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(1))
-
-        for i in range(hidden_rep.size(0)):
-            cs_tensor[i][0] = cs[i]
+        '''
 
         #calculate cosine similarity for every query vs. neg q pair
-        k = 1
-        for j in range(2, hidden_rep.size(1)):
-            neg_tensor = autograd.Variable(hidden_rep.size(0), hidden_rep.size(2))
-            for i in range(hidden_rep.size(0)):
-                neg_tensor[i] = hidden_rep[i, j, ]
-            cs = cosine_similarity(query_tensor, neg_tensor)
-            for c in range(hidden_rep.size(0)):
-                cs_tensor[c][k] = cs[i]
-            k+=1
 
+        for j in range(1, hidden_rep.size(1)):
+            for i in range(hidden_rep.size(0)):
+                cs_tensor[i, j] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
+                print hidden_rep[i, 0, ].type(torch.FloatTensor)
+                print hidden_rep[i, j, ].type(torch.FloatTensor)
+
+        print cs_tensor
+        exit(1)
         #X_scores of cosine similarities shold be of size [batch_size, num_questions]
         #y_targets should be all-zero vector of size [batch_size]
 

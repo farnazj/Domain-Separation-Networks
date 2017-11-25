@@ -3,19 +3,11 @@ import data.dataset as dataset
 import gzip
 import tqdm
 
-'''
 PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
 PATH_DEV = "./askubuntu/dev.txt"
 PATH_TEST = "./askubuntu/test.txt"
 PATH_TRAIN = "./askubuntu/train_random.txt"
-'''
-
-PATH_EMB = "./askubuntu_test/vector/vectors_pruned.200.txt.gz"
-PATH_TEXT = "./askubuntu_test/text_tokenized.txt.gz"
-PATH_DEV = "./askubuntu_test/dev.txt"
-PATH_TEST = "./askubuntu_test/test.txt"
-PATH_TRAIN = "./askubuntu_test/train_random.txt"
 
 EMB_LEN = 200
 MAX_BODY_LEN = 500
@@ -38,8 +30,6 @@ def getId2Data(word2idx):
     id2data = {}
     max_title = 0
     max_body = 0
-    # average body length 121, largest 6336
-    # 164200 < 500 words 3565 more
 
     with gzip.open(PATH_TEXT) as gfile:
         for line in tqdm.tqdm(gfile):
@@ -57,7 +47,7 @@ def getId2Data(word2idx):
 
             if max_title < len(title2iarr):
                 max_title = len(title2iarr)
-            if max_body < len(body2iarr):   #for 500 limit max body is 489
+            if max_body < len(body2iarr):
                 max_body = len(body2iarr)
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
