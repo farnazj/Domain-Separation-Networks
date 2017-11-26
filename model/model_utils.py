@@ -54,8 +54,21 @@ class LSTM(nn.Module):
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
         #lose the dimension of size 1
         h_n = h_n.squeeze(0)
+        '''
+        print (output[:,4,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        print (output[:,100,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+
+        print (output[:,200,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        print (output[:,499,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+
+        print h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        print x_index.data.shape[2]
+        exit(1)
+        '''
+
         #reshape the hidden layers
         result = h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        print result
 
         return result
 

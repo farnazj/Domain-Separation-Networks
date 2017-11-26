@@ -3,6 +3,9 @@ import torch
 import gzip
 import tqdm
 import torch.utils.data as data
+import random
+
+NEGATIVE_EXAMPLE_COUNT = 100
 
 def pad(arr, l):
     if len(arr) < l:
@@ -16,6 +19,7 @@ class AskUbuntuDataset(data.Dataset):
         self.id2data = id2data
         self.title_dim = max_title
         self.body_dim = max_body
+        self.id2data_list = list(id2data)
 
         with open(path) as f:
             for line in tqdm.tqdm(f):
@@ -29,12 +33,12 @@ class AskUbuntuDataset(data.Dataset):
                 negs = [x for x in negs if x not in pos]
 
                 for p in pos:
-                    sample = self.createSample(q, p, negs, max_title, max_body)
+                    sample = self.createSample(q, p, negs, pos, max_title, max_body)
                     if sample != None:
                         self.dataset.append(sample)
 
 
-    def createSample(self, q, p, negs, title_len, body_len):
+    def createSample(self, q, p, negs, pos, title_len, body_len):
         qarr = []
 
         if q not in self.id2data or p not in self.id2data:
@@ -64,13 +68,22 @@ class AskUbuntuDataset(data.Dataset):
         sample = {'titles': [q_title, p_title], 'bodies':[q_body, p_body], "titles_masks":[qt_mask, pt_mask], "bodies_masks":[qb_mask, pb_mask]}
 
         count_negs = 0
-        for np in negs:
-            if np not in self.id2data:
-                continue
-            title, body = self.id2data[np]
-            t_mask = len(title)
-            b_mask = len(body)
 
+        while count_negs < NEGATIVE_EXAMPLE_COUNT:
+
+            if count_negs < len(negs):
+                neg_candidate = negs[count_negs]
+            if count_negs >= len(negs) or neg_candidate not in self.id2data:
+                '''
+                pick a negative example randomly when a negative example does not exist
+                in the dictionary of examples or the data has fewer negative examples than it should
+                '''
+                while True:
+                    neg_candidate = random.choice(self.id2data_list)
+                    if neg_candidate not in set().union(negs, pos, [q]):
+                        break
+
+            title, body = self.id2data[neg_candidate]
             pad(title, title_len)
             pad(body, body_len)
             #qarr.append([title, body])
@@ -81,8 +94,7 @@ class AskUbuntuDataset(data.Dataset):
 
             count_negs += 1
 
-        if count_negs == 0:
-            return None
+
         #return {'x': qarr, 'y': 1}
 
         sample['titles'] = torch.LongTensor(sample['titles'])
