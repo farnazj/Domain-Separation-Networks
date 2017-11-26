@@ -66,7 +66,7 @@ def loadDataset(args):
     args.embedding_dim = embedding_tensor.shape[1]
 
     train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body)
-    dev_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body)
+    dev_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
     #test_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
 
     return train_data, dev_data, embedding_tensor
@@ -77,6 +77,6 @@ def loadTest(args):
     #alternatively we could/had better save the embedding, max_title, max_body along with the model in a file
     id2data, max_title, max_body = getId2Data(word2idx)
     args.embedding_dim = embedding_tensor.shape[1]
-    test_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
+    test_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body)
 
     return test_data
