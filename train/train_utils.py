@@ -65,9 +65,13 @@ def run_epoch(data, is_training, model, optimizer, args):
 
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
         bodies = autograd.Variable(batch['bodies'])
-        out_bodies = model(bodies)
+        bodies_masks = autograd.Variable(batch['bodies_masks'])
+        out_bodies = model(bodies, bodies_masks)
+
         titles = autograd.Variable(batch['titles'])
-        out_titles = model(titles)
+        titles_masks = autograd.Variable(batch['titles_masks'])
+        out_titles = model(titles, titles_masks)
+
         hidden_rep = (out_bodies + out_titles)/2
 
         print hidden_rep.size()

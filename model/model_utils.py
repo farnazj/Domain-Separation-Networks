@@ -38,7 +38,9 @@ class LSTM(nn.Module):
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
-    def forward(self, x_index):
+    def forward(self, x_index, masks):
+        #TODO: mask integer points to the FIRST dummy word
+
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
 
@@ -73,7 +75,7 @@ class CNN(nn.Module):
 
         self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3)
 
-    def forward(self, x_index):
+    def forward(self, x_index, masks):
 
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
         new_batch_size = reshaped_indices.data.shape[0]
