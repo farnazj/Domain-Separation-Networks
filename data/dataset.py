@@ -8,8 +8,7 @@ import random
 NEGATIVE_EXAMPLE_COUNT = 100
 
 def pad(arr, l):
-    if len(arr) < l:
-        while len(arr) < l:
+    while len(arr) < l:
             arr.append(0)
 
 class AskUbuntuDataset(data.Dataset):
@@ -44,14 +43,8 @@ class AskUbuntuDataset(data.Dataset):
         if q not in self.id2data or p not in self.id2data:
             return None
 
-        q_title, q_body = self.id2data[q]
-        p_title, p_body = self.id2data[p]
-
-        qt_mask = len(q_title)
-        qb_mask = len(q_body)
-
-        pt_mask = len(p_title)
-        pb_mask = len(p_body)
+        (q_title, qt_mask),(q_body, qb_mask) = self.id2data[q]
+        (p_title,pt_mask), (p_body, pb_mask) = self.id2data[p]
 
         pad(q_title, title_len)
         pad(q_body, body_len)
@@ -65,6 +58,7 @@ class AskUbuntuDataset(data.Dataset):
 
         #qarr.append([q_title, q_body])
         #qarr.append([p_title, p_body])
+
         sample = {'titles': [q_title, p_title], 'bodies':[q_body, p_body], "titles_masks":[qt_mask, pt_mask], "bodies_masks":[qb_mask, pb_mask]}
 
         count_negs = 0
@@ -83,7 +77,9 @@ class AskUbuntuDataset(data.Dataset):
                     if neg_candidate not in set().union(negs, pos, [q]):
                         break
 
-            title, body = self.id2data[neg_candidate]
+            (title, t_mask), (body, b_mask) = self.id2data[neg_candidate]
+            #t_mask = len(title)
+            #b_mask = len(body)
             pad(title, title_len)
             pad(body, body_len)
             #qarr.append([title, body])
@@ -101,6 +97,8 @@ class AskUbuntuDataset(data.Dataset):
         sample['bodies'] = torch.LongTensor(sample['bodies'])
         sample['titles_masks'] = torch.LongTensor(sample['titles_masks'])
         sample['bodies_masks'] = torch.LongTensor(sample['bodies_masks'])
+        #print sample['titles_masks']
+        #print sample['bodies_masks']
         return sample  #we do not need y
 
     def __len__(self):

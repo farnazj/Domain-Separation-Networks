@@ -31,7 +31,7 @@ class LSTM(nn.Module):
         vocab_size, embed_dim = embeddings.shape
 
         self.embed_dim = embed_dim
-        self.embedding_layer = nn.Embedding(vocab_size, embed_dim)
+        self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
         self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False)
@@ -40,6 +40,7 @@ class LSTM(nn.Module):
 
     def forward(self, x_index, masks):
         #TODO: mask integer points to the FIRST dummy word
+        print masks
 
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
@@ -47,14 +48,18 @@ class LSTM(nn.Module):
         new_batch_size = reshaped_indices.data.shape[0]
 
         embeddings = self.embedding_layer(reshaped_indices)
+        print embeddings
 
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
+        idx = (masks - 1).view(-1,1).expand(output.size(0), output.size(2)).unsqueeze(1)
+        result = output.gather(1, idx).squeeze()
+
+        '''
         #lose the dimension of size 1
         h_n = h_n.squeeze(0)
-        '''
         print (output[:,4,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
         print (output[:,100,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
@@ -63,11 +68,12 @@ class LSTM(nn.Module):
 
         print h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
         print x_index.data.shape[2]
-        exit(1)
-        '''
 
         #reshape the hidden layers
         result = h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+
+        '''
+        result = result.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
         print result
 
         return result
@@ -83,7 +89,7 @@ class CNN(nn.Module):
         vocab_size, embed_dim = embeddings.shape
 
         self.embed_dim = embed_dim
-        self.embedding_layer = nn.Embedding( vocab_size, embed_dim)
+        self.embedding_layer = nn.Embedding( vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
         self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3)

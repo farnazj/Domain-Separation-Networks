@@ -53,7 +53,7 @@ def getId2Data(word2idx):
 
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
-                id2data[qid] = (title2iarr, body2iarr)
+                id2data[qid] = ((title2iarr,len(title2iarr)), (body2iarr, len(body2iarr) ))
 
     return id2data, max_title, MAX_BODY_LEN
 
