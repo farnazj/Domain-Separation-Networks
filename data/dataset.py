@@ -5,7 +5,7 @@ import tqdm
 import torch.utils.data as data
 import random
 
-NEGATIVE_EXAMPLE_COUNT = 100
+NEGATIVE_EXAMPLE_COUNT = 20
 
 def pad(arr, l):
     while len(arr) < l:
@@ -62,6 +62,8 @@ class AskUbuntuDataset(data.Dataset):
         sample = {'titles': [q_title, p_title], 'bodies':[q_body, p_body], "titles_masks":[qt_mask, pt_mask], "bodies_masks":[qb_mask, pb_mask]}
 
         count_negs = 0
+
+        random.shuffle(negs)
 
         while count_negs < NEGATIVE_EXAMPLE_COUNT:
 

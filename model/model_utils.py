@@ -39,8 +39,6 @@ class LSTM(nn.Module):
 
 
     def forward(self, x_index, masks):
-        #TODO: mask integer points to the FIRST dummy word
-        print masks
 
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
         reshaped_indices = x_index.view(-1, x_index.data.shape[2])
@@ -48,7 +46,6 @@ class LSTM(nn.Module):
         new_batch_size = reshaped_indices.data.shape[0]
 
         embeddings = self.embedding_layer(reshaped_indices)
-        print embeddings
 
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
@@ -74,7 +71,7 @@ class LSTM(nn.Module):
 
         '''
         result = result.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-        print result
+        #print result
 
         return result
 
@@ -92,7 +89,7 @@ class CNN(nn.Module):
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3)
+        self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3, padding = 1)
 
     def forward(self, x_index, masks):
 
@@ -108,6 +105,19 @@ class CNN(nn.Module):
 
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
         #to batch_size * hidden_size * 1
+        '''
+        convolution = self.conv1(embeddings)
+        idx = (masks - 1).view(-1,1).squeeze(1).data.numpy()
+        tangh = F.tanh(convolution)
+
+        averages = []
+
+        for unit_index, unit in enumerate(tangh):
+            tangh_result = tangh.narrow(2, 0, idx[unit_index])
+            print tangh_result
+            print "***"
+        exit(1)
+        '''
         output = F.adaptive_avg_pool1d(F.tanh(self.conv1(embeddings)), 1)
 
         #lose the dimension of size 1
