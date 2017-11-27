@@ -11,7 +11,7 @@ HIDDEN_SIZE = 50
 EPOCHS = 1
 BATCH_SIZE = 8
 
-TRAIN = True
+TRAIN = False
 TEST = False
 DEV = True
 

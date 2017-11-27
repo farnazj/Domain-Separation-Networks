@@ -111,9 +111,6 @@ def run_epoch(data, is_training, model, optimizer, args):
             #sort by cosine similarity scores and preserve indices    n1 n2 p1 n3 n4 n5 p2 n6
 
             #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
-            srank = 0
-            count_top_1 = 0
-            count_top_5 = 0
 
             for i in range(args.batch_size):
                 scores_list = []
@@ -141,23 +138,20 @@ def run_epoch(data, is_training, model, optimizer, args):
                         last_index = j+1
 
                         if flag == 0:
-                            srank += 1/(j+1)
+                            sum_ranks += 1.0/(j+1)
                             flag = 1
 
                         if j == 0:
-                            count_top_1 += 1
+                            top_1 += 1
 
                         if j < 5:
-                            count_top_5 += 1
+                            top_5 += 1
 
 
                 if last_index > 0:
                     sum_prec /= last_index
 
                 sum_av_prec += sum_prec
-                sum_ranks += srank
-                top_5 += count_top_5
-                top_1 += count_top_1
                 num_samples += 1
 
                 '''
@@ -176,9 +170,9 @@ def run_epoch(data, is_training, model, optimizer, args):
         print('Average Train loss: {:.6f}'.format(avg_loss))
         print()
     else:
-
-        _map = sum_av_prec/num_samples   #SHOULD I DIVIDE BY num_scores OR num_samples ?
-        _mrr = sum_ranks/num_samples     #SHOULD I DIVIDE BY num_scores OR num_samples ?
+        print sum_ranks, num_samples
+        _map = sum_av_prec/num_samples
+        _mrr = sum_ranks/num_samples     
         _pat5 = top_5/(num_samples*5)
         _pat1 = top_1/num_samples
         print('MAP: {:.3f}'.format(_map))
