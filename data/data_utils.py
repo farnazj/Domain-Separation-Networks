@@ -9,8 +9,13 @@ PATH_DEV = "./askubuntu/dev.txt"
 PATH_TEST = "./askubuntu/test.txt"
 PATH_TRAIN = "./askubuntu/train_random.txt"
 
+PATH_EMB_SAVE = './embedding.pickle'
+PATH_ID2DATA_SAVE = './id2data.pickle'
+PATH_MAXES_SAVE = './maxes.txt'
+
+
 EMB_LEN = 200
-MAX_BODY_LEN = 500
+MAX_BODY_LEN = 100
 
 def getEmbeddingTensor():
     word2idx = {}
@@ -53,7 +58,7 @@ def getId2Data(word2idx):
 
 
             if len(title2iarr) != 0 and len(body2iarr) != 0:
-                id2data[qid] = ((title2iarr,len(title2iarr)), (body2iarr, len(body2iarr) ))
+                id2data[qid] = ((title2iarr, len(title2iarr)), (body2iarr, len(body2iarr) ))
 
     return id2data, max_title, MAX_BODY_LEN
 
@@ -65,18 +70,17 @@ def loadDataset(args):
 
     args.embedding_dim = embedding_tensor.shape[1]
 
-    train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body)
-    dev_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
-    #test_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body)
+    if args.train:
+        train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body, True)
+    else:
+        train_data = None
+    if args.dev:
+        dev_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body, False)
+    else:
+        dev_data = None
+    if args.test:
+        test_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body, False)
+    else:
+        test_data = None
 
-    return train_data, dev_data, embedding_tensor
-
-def loadTest(args):
-    print "\nLoading data..."
-    embedding_tensor, word2idx = getEmbeddingTensor()
-    #alternatively we could/had better save the embedding, max_title, max_body along with the model in a file
-    id2data, max_title, max_body = getId2Data(word2idx)
-    args.embedding_dim = embedding_tensor.shape[1]
-    test_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body)
-
-    return test_data
+    return train_data, dev_data, test_data, embedding_tensor

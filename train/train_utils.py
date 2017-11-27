@@ -1,4 +1,5 @@
 import os, sys, torch, pdb, datetime
+from operator import itemgetter
 import torch.autograd as autograd
 import torch.nn.functional as F
 import torch.utils.data as data
@@ -6,7 +7,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 
-def train_model(train_data, dev_data, model, args):
+def train_model(train_data, dev_data, test_data, model, args):
 
 
     if args.cuda:
@@ -14,26 +15,24 @@ def train_model(train_data, dev_data, model, args):
 
     optimizer = torch.optim.Adam(model.parameters() , lr=args.lr)
 
-    model.train()
+    if args.train:
+        model.train()
 
     for epoch in range(1, args.epochs+1):
 
         print("-------------\nEpoch {}:\n".format(epoch))
 
+        if args.train:
+            run_epoch(train_data, True, model, optimizer, args)
 
-        loss = run_epoch(train_data, True, model, optimizer, args)
+        if args.dev and dev_data != None:
+            run_epoch(dev_data, False, model, optimizer, args)
 
-        print('Train MSE loss: {:.6f}'.format( loss))
+        if args.test and test_data != None:
+            run_epoch(test_data, False, model, optimizer, args)
 
-        print()
-
-        val_loss = run_epoch(dev_data, False, model, optimizer, args)
-        print('Val MSE loss: {:.6f}'.format( val_loss))
-
-        test_loss = run_epoch(test_data, False, model, optimizer, args)
-        print('Test MSE loss: {:.6f}'.format( val_loss))
-
-        # Save model
+    if args.train:
+        print "Saving model to ", args.save_path
         torch.save(model, args.save_path)
 
 def run_epoch(data, is_training, model, optimizer, args):
@@ -53,6 +52,14 @@ def run_epoch(data, is_training, model, optimizer, args):
         model.train()
     else:
         model.eval()
+
+    sum_av_prec = 0.0
+    num_scores = 0.0
+    sum_ranks = 0.0
+    all_similar = 0.0
+    num_samples = 0.0
+    top_5 = 0.0
+    top_1 = 0.0
 
     for batch in tqdm(data_loader):
 
@@ -74,8 +81,6 @@ def run_epoch(data, is_training, model, optimizer, args):
 
         hidden_rep = (out_bodies + out_titles)/2
 
-        print hidden_rep.size()
-
         #Calculate cosine similarities here and construct X_scores
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
 
@@ -89,31 +94,94 @@ def run_epoch(data, is_training, model, optimizer, args):
                 #print hidden_rep[i, 0, ].type(torch.FloatTensor)
                 #print hidden_rep[i, j, ].type(torch.FloatTensor)
 
-        #print cs_tensor
-
-        #X_scores of cosine similarities shold be of size [batch_size, num_questions]
-        #y_targets should be all-zero vector of size [batch_size]
-
-        X_scores = torch.stack(cs_tensor, 0)  #??
-        #print X_scores
-        #print X_scores.size()
-
+        X_scores = torch.stack(cs_tensor, 0)
         y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
-        #print y_targets
-        #print y_targets.size()
 
-        loss = criterion(X_scores, y_targets)
-
-        print loss
 
         if is_training:
+            loss = criterion(X_scores, y_targets)
+            print "Loss in batch", loss.data
+
             loss.backward()
             optimizer.step()
 
-        losses.append(loss.cpu().data[0])
+            losses.append(loss.cpu().data[0])
+
+        else:
+            #sort by cosine similarity scores and preserve indices    n1 n2 p1 n3 n4 n5 p2 n6
+
+            #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
+            srank = 0
+            count_top_1 = 0
+            count_top_5 = 0
+
+            for i in range(args.batch_size):
+                scores_list = []
+                for j in range(20):
+                    x = cs_tensor[i, j].data
+                    x = x.numpy().item()
+                    scores_list.append( (x, j) )
+
+                scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
+
+                count = 0.0
+                last_index = -1
+                sum_prec = 0.0
+                similar_indices = []
+                flag = 0
+
+                for k in batch['similar'][i]:
+                    if k != -1:
+                        similar_indices.append(k)
+
+                for j in range(20):
+                    if scores_list[j][1] in similar_indices:
+                        count += 1
+                        sum_prec += count/(j+1)
+                        last_index = j+1
+
+                        if flag == 0:
+                            srank += 1/(j+1)
+                            flag = 1
+
+                        if j == 0:
+                            count_top_1 += 1
+
+                        if j < 5:
+                            count_top_5 += 1
+
+
+                if last_index > 0:
+                    sum_prec /= last_index
+
+                sum_av_prec += sum_prec
+                sum_ranks += srank
+                top_5 += count_top_5
+                top_1 += count_top_1
+                num_samples += 1
+
+                '''
+                if len(similar_indices) < 5:
+                    all_similar += len(similar_indices)
+                else:
+                    all_similar += 5
+                '''
+
 
     #---> Report MAP, MRR, P@1 and P@5
 
     # Calculate epoch level scores
-    avg_loss = np.mean(losses)
-    return avg_loss
+    if is_training:
+        avg_loss = np.mean(losses)
+        print('Average Train loss: {:.6f}'.format(avg_loss))
+        print()
+    else:
+
+        _map = sum_av_prec/num_samples   #SHOULD I DIVIDE BY num_scores OR num_samples ?
+        _mrr = sum_ranks/num_samples     #SHOULD I DIVIDE BY num_scores OR num_samples ?
+        _pat5 = top_5/(num_samples*5)
+        _pat1 = top_1/num_samples
+        print('MAP: {:.3f}'.format(_map))
+        print('MRR: {:.3f}'.format(_mrr))
+        print('P@1: {:.3f}'.format(_pat1))
+        print('P@5: {:.3f}'.format(_pat5))
