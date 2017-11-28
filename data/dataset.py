@@ -13,6 +13,16 @@ def pad(arr, l):
     while len(arr) < l:
             arr.append(0)
 
+def padmask(origlen, maxlen):
+    m = []
+
+    for i in range(maxlen):
+        if i < origlen:
+            m.append(1)
+        else:
+            m.append(0)
+    return m
+
 class AskUbuntuDataset(data.Dataset):
     def __init__(self, path, id2data, max_title, max_body, isTrain):
         self.path = path
@@ -42,13 +52,16 @@ class AskUbuntuDataset(data.Dataset):
                     if sample != None:
                         self.dataset.append(sample)
 
-    def createEvalSample(self, query_q, rest_qs, pos, title_len, body_len):
+    def createEvalSample(self, query_q, rest_qs, pos, max_title, max_body):
 
         if query_q not in self.id2data:
             return None
 
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[query_q]
 
+        qt_mask = pad_mask(qt_mask, max_title)
+        qb_mask = pad_mask(qb_mask, max_body)
+        
         pad(q_title, title_len)
         pad(q_body, body_len)
 
@@ -83,6 +96,9 @@ class AskUbuntuDataset(data.Dataset):
 
             (title, t_mask), (body, b_mask) = self.id2data[candidate]
 
+            t_mask = pad_mask(t_mask, max_title)
+            b_mask = pad_mask(b_mask, max_body)
+
             pad(title, title_len)
             pad(body, body_len)
 
@@ -106,12 +122,17 @@ class AskUbuntuDataset(data.Dataset):
         return sample
 
 
-    def createTrainSample(self, q, p, negs, pos, title_len, body_len):
+    def createTrainSample(self, q, p, negs, pos, max_title, max_body):
         if q not in self.id2data or p not in self.id2data:
             return None
 
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[q]
         (p_title, pt_mask), (p_body, pb_mask) = self.id2data[p]
+
+        qt_mask = pad_mask(qt_mask, max_title)
+        qb_mask = pad_mask(qb_mask, max_body)
+        pt_mask = pad_mask(pt_mask, max_title)
+        pb_mask = pad_mask(pb_mask, max_body)
 
         pad(q_title, title_len)
         pad(q_body, body_len)
@@ -144,6 +165,9 @@ class AskUbuntuDataset(data.Dataset):
                         break
 
             (title, t_mask), (body, b_mask) = self.id2data[neg_candidate]
+
+            t_mask = pad_mask(t_mask, max_title)
+            b_mask = pad_mask(b_mask, max_body)
 
             pad(title, title_len)
             pad(body, body_len)
