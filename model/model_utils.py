@@ -51,27 +51,19 @@ class LSTM(nn.Module):
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
+        #seq length hidden state mean pooling (avoiding the padding regions)
+        masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
+        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
+        masked_seq = masks_expanded * output
+        averaged_hidden_states = torch.mean(masked_seq, 1)
+
+        '''
+        #last stage pooling:
         idx = (masks - 1).view(-1,1).expand(output.size(0), output.size(2)).unsqueeze(1)
         result = output.gather(1, idx).squeeze()
-
         '''
-        #lose the dimension of size 1
-        h_n = h_n.squeeze(0)
-        print (output[:,4,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-        print (output[:,100,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
-        print (output[:,200,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-        print (output[:,499,:]).view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-
-        print h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-        print x_index.data.shape[2]
-
-        #reshape the hidden layers
-        result = h_n.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-
-        '''
-        result = result.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
-        #print result
+        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
         return result
 
@@ -106,7 +98,6 @@ class CNN(nn.Module):
         #the following takes the output of convolutional layers: batch_size * hidden_size * size of output of convolutions
         #to batch_size * hidden_size * 1
         '''
-        convolution = self.conv1(embeddings)
         idx = (masks - 1).view(-1,1).squeeze(1).data.numpy()
         tangh = F.tanh(convolution)
 
@@ -114,17 +105,20 @@ class CNN(nn.Module):
 
         for unit_index, unit in enumerate(tangh):
             tangh_result = tangh.narrow(2, 0, idx[unit_index])
-            print tangh_result
-            print "***"
-        exit(1)
         '''
-        output = F.adaptive_avg_pool1d(F.tanh(self.conv1(embeddings)), 1)
+        #mean pooling the convolution layer (avoiding the padding regions)
+        convolution = self.conv1(embeddings)
+
+        masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(1).type(torch.FloatTensor)
+        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],convolution.size(1), masks_reshaped.data.shape[2] )
+
+        masked_conv = masks_expanded * convolution
+        tang = F.tanh(masked_conv)
+        output = F.adaptive_avg_pool1d(tang, 1)
 
         #lose the dimension of size 1
         output = output.squeeze(2)
-
         #reshape back the hidden layers
-        output = output.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = output.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
-
-        return output
+        return result
