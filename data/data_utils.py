@@ -6,9 +6,9 @@ import cPickle as pickle
 
 PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
-PATH_DEV = "./askubuntu/dev_trimmed.txt"
+PATH_DEV = "./askubuntu/dev.txt"
 PATH_TEST = "./askubuntu/test.txt"
-PATH_TRAIN = "./askubuntu/train_trimmed.txt"
+PATH_TRAIN = "./askubuntu/train_random.txt"
 
 PATH_EMB_SAVE = './embedding.pickle'
 PATH_ID2DATA_SAVE = './id2data.pickle'
