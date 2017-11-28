@@ -7,7 +7,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 
-def train_model(train_data, dev_data, test_data, model, args):
+def train_model(train_data, dev_data, model, args):
 
 
     if args.cuda:
@@ -18,22 +18,26 @@ def train_model(train_data, dev_data, test_data, model, args):
     if args.train:
         model.train()
 
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(1, args.epochs):
 
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        if args.train:
-            run_epoch(train_data, True, model, optimizer, args)
+        run_epoch(train_data, True, model, optimizer, args)
 
-        if args.dev and dev_data != None:
-            run_epoch(dev_data, False, model, optimizer, args)
+        print "*******dev********"
+        run_epoch(dev_data, False, model, optimizer, args)
 
-        if args.test and test_data != None:
-            run_epoch(test_data, False, model, optimizer, args)
-
-    if args.train:
-        print "Saving model to ", args.save_path
         torch.save(model, args.save_path)
+
+
+def test_model(test_data, model, args):
+    if args.cuda:
+        model = model.cuda()
+
+    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr)
+    print "*******test********"
+    run_epoch(test_data, False, model, optimizer, args)
+
 
 def run_epoch(data, is_training, model, optimizer, args):
     '''
@@ -64,7 +68,7 @@ def run_epoch(data, is_training, model, optimizer, args):
     for batch in tqdm(data_loader):
 
         cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
-        criterion = nn.MultiMarginLoss()
+        criterion = nn.MultiMarginLoss(margin=0.4)
         #pdb.set_trace()
 
         if is_training:
@@ -172,7 +176,7 @@ def run_epoch(data, is_training, model, optimizer, args):
     else:
         print sum_ranks, num_samples
         _map = sum_av_prec/num_samples
-        _mrr = sum_ranks/num_samples     
+        _mrr = sum_ranks/num_samples
         _pat5 = top_5/(num_samples*5)
         _pat1 = top_1/num_samples
         print('MAP: {:.3f}'.format(_map))

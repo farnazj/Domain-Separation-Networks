@@ -2,6 +2,7 @@ import numpy as np
 import data.dataset as dataset
 import gzip
 import tqdm
+import cPickle as pickle
 
 PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
@@ -11,7 +12,7 @@ PATH_TRAIN = "./askubuntu/train_random.txt"
 
 PATH_EMB_SAVE = './embedding.pickle'
 PATH_ID2DATA_SAVE = './id2data.pickle'
-PATH_MAXES_SAVE = './maxes.txt'
+PATH_CONST_SAVE = './consts.txt'
 
 
 EMB_LEN = 200
@@ -64,23 +65,31 @@ def getId2Data(word2idx):
 
 
 def loadDataset(args):
-    print "\nLoading data..."
+    print "\nLoading embedding, train, and dev data..."
     embedding_tensor, word2idx = getEmbeddingTensor()
     id2data, max_title, max_body = getId2Data(word2idx)
 
     args.embedding_dim = embedding_tensor.shape[1]
 
-    if args.train:
-        train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body, True)
-    else:
-        train_data = None
-    if args.dev:
-        dev_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body, False)
-    else:
-        dev_data = None
-    if args.test:
-        test_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body, False)
-    else:
-        test_data = None
+    train_data = dataset.AskUbuntuDataset(PATH_TRAIN, id2data, max_title, max_body, True)
+    dev_data = dataset.AskUbuntuDataset(PATH_DEV, id2data, max_title, max_body, False)
 
-    return train_data, dev_data, test_data, embedding_tensor
+    with open(PATH_ID2DATA_SAVE, 'wb') as handle:
+        pickle.dump(id2data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(PATH_CONST_SAVE, 'w') as tfile:
+        tfile.write(str(max_title) + '\t' + str(max_body) + '\t' + str(args.embedding_dim))
+
+    return train_data, dev_data, embedding_tensor
+
+
+def loadTest(args):
+    print "\nLoading paramters and test data..."
+
+    with open(PATH_ID2DATA_SAVE, 'rb') as handle:
+        id2data = pickle.load(handle)
+    with open(PATH_CONST_SAVE, 'r') as tfile:
+        max_title, max_body, args.embedding_dim = [int(x) for x in tfile.read().split()]
+
+    test_data = dataset.AskUbuntuDataset(PATH_TEST, id2data, max_title, max_body, False)
+
+    return test_data
