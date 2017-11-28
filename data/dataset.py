@@ -59,11 +59,11 @@ class AskUbuntuDataset(data.Dataset):
 
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[query_q]
 
-        qt_mask = pad_mask(qt_mask, max_title)
-        qb_mask = pad_mask(qb_mask, max_body)
-        
-        pad(q_title, title_len)
-        pad(q_body, body_len)
+        qt_mask = padmask(qt_mask, max_title)
+        qb_mask = padmask(qb_mask, max_body)
+
+        pad(q_title, max_title)
+        pad(q_body, max_body)
 
         sample = {
         'titles': [q_title],
@@ -96,11 +96,11 @@ class AskUbuntuDataset(data.Dataset):
 
             (title, t_mask), (body, b_mask) = self.id2data[candidate]
 
-            t_mask = pad_mask(t_mask, max_title)
-            b_mask = pad_mask(b_mask, max_body)
+            t_mask = padmask(t_mask, max_title)
+            b_mask = padmask(b_mask, max_body)
 
-            pad(title, title_len)
-            pad(body, body_len)
+            pad(title, max_title)
+            pad(body, max_body)
 
             sample['titles'].append(title)
             sample['bodies'].append(body)
@@ -113,11 +113,15 @@ class AskUbuntuDataset(data.Dataset):
             while len(sample['similar']) < MAX_POS:
                 sample['similar'].append(-1)
 
+        for key in sample:
+            torch.LongTensor(sample[key])
+        '''
         sample['titles'] = torch.LongTensor(sample['titles'])
         sample['bodies'] = torch.LongTensor(sample['bodies'])
         sample['titles_masks'] = torch.LongTensor(sample['titles_masks'])
         sample['bodies_masks'] = torch.LongTensor(sample['bodies_masks'])
         sample['similar'] = torch.LongTensor(sample['similar'])
+        '''
 
         return sample
 
@@ -129,15 +133,15 @@ class AskUbuntuDataset(data.Dataset):
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[q]
         (p_title, pt_mask), (p_body, pb_mask) = self.id2data[p]
 
-        qt_mask = pad_mask(qt_mask, max_title)
-        qb_mask = pad_mask(qb_mask, max_body)
-        pt_mask = pad_mask(pt_mask, max_title)
-        pb_mask = pad_mask(pb_mask, max_body)
+        qt_mask = padmask(qt_mask, max_title)
+        qb_mask = padmask(qb_mask, max_body)
+        pt_mask = padmask(pt_mask, max_title)
+        pb_mask = padmask(pb_mask, max_body)
 
-        pad(q_title, title_len)
-        pad(q_body, body_len)
-        pad(p_title, title_len)
-        pad(p_body, body_len)
+        pad(q_title, max_title)
+        pad(q_body, max_body)
+        pad(p_title, max_title)
+        pad(p_body, max_body)
 
         sample = {
         'titles': [q_title, p_title],
@@ -166,11 +170,11 @@ class AskUbuntuDataset(data.Dataset):
 
             (title, t_mask), (body, b_mask) = self.id2data[neg_candidate]
 
-            t_mask = pad_mask(t_mask, max_title)
-            b_mask = pad_mask(b_mask, max_body)
+            t_mask = padmask(t_mask, max_title)
+            b_mask = padmask(b_mask, max_body)
 
-            pad(title, title_len)
-            pad(body, body_len)
+            pad(title, max_title)
+            pad(body, max_body)
 
             sample['titles'].append(title)
             sample['bodies'].append(body)

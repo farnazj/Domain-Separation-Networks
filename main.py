@@ -9,7 +9,7 @@ import cPickle as pickle
 LR = 0.001
 HIDDEN_SIZE = 240
 EPOCHS = 30
-BATCH_SIZE = 12
+BATCH_SIZE = 16
 
 TRAIN = False
 TEST = False
