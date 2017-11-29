@@ -9,11 +9,10 @@ import numpy as np
 
 def train_model(train_data, dev_data, model, args):
 
-
     if args.cuda:
         model = model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr, weight_decay=args.weight_decay)
 
     if args.train:
         model.train()
@@ -24,17 +23,17 @@ def train_model(train_data, dev_data, model, args):
 
         run_epoch(train_data, True, model, optimizer, args)
 
+        torch.save(model, args.save_path)
+
         print "*******dev********"
         run_epoch(dev_data, False, model, optimizer, args)
 
-        torch.save(model, args.save_path)
 
 
 def test_model(test_data, model, args):
     if args.cuda:
         model = model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr)
     print "*******test********"
     run_epoch(test_data, False, model, optimizer, args)
 
@@ -94,9 +93,8 @@ def run_epoch(data, is_training, model, optimizer, args):
 
         for j in range(1, hidden_rep.size(1)):
             for i in range(hidden_rep.size(0)):
-                cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
-                #print hidden_rep[i, 0, ].type(torch.FloatTensor)
-                #print hidden_rep[i, j, ].type(torch.FloatTensor)
+                cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ], hidden_rep[i, j, ])
+                #cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
 
         X_scores = torch.stack(cs_tensor, 0)
         y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
@@ -130,6 +128,8 @@ def run_epoch(data, is_training, model, optimizer, args):
                 sum_prec = 0.0
                 similar_indices = []
                 flag = 0
+
+                #similar_indices = [k in batch['similar'][i] if k != -1]
 
                 for k in batch['similar'][i]:
                     if k != -1:
