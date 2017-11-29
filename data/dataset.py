@@ -23,6 +23,83 @@ def padmask(origlen, maxlen):
             m.append(0)
     return m
 
+def evalSampleDic(q_title, q_body, qt_mask, qb_mask):
+    sample = {
+    'titles': [q_title],
+    'bodies':[q_body],
+    'titles_masks':[qt_mask],
+    'bodies_masks':[qb_mask],
+    'similar':[]
+    }
+    return sample
+
+def trainSampleDic(q_title, p_title, q_body, p_body, qt_mask, pt_mask, qb_mask, pb_mask):
+    sample = {
+    'titles': [q_title, p_title],
+    'bodies':[q_body, p_body],
+    'titles_masks':[qt_mask, pt_mask],
+    'bodies_masks':[qb_mask, pb_mask]
+    }
+    return sample
+
+def processCandidate(sample, candidate, id2data, max_title, max_body):
+    (title, t_mask), (body, b_mask) = id2data[candidate]
+
+    t_mask = padmask(t_mask, max_title)
+    b_mask = padmask(b_mask, max_body)
+
+    pad(title, max_title)
+    pad(body, max_body)
+
+    sample['titles'].append(title)
+    sample['bodies'].append(body)
+    sample['titles_masks'].append(t_mask)
+    sample['bodies_masks'].append(b_mask)
+
+def fillInTrainSample(sample, p, q, negs, pos, id2data, id2data_list, max_title, max_body):
+    count_negs = 0
+
+    while count_negs < MAX_QCOUNT-1:
+        neg_candidate = None
+        if count_negs < len(negs):
+            neg_candidate = negs[count_negs]
+        if count_negs >= len(negs) or neg_candidate not in id2data:
+            while True:
+                neg_candidate = random.choice(id2data_list)
+                if neg_candidate not in set().union(negs, pos, [q]):
+                    break
+
+        processCandidate(sample, neg_candidate, id2data, max_title, max_body)
+        count_negs += 1
+
+def fillInEvalSample(sample, query_q, rest_qs, pos, id2data, id2data_list, max_title, max_body):
+    count = 0
+    count_pos = 0
+
+    while count < MAX_QCOUNT:
+        candidate = None
+        if count_pos < MAX_POS and count_pos < len(pos):
+            candidate = pos[count_pos]
+            sample['similar'].append(count)
+            count_pos += 1
+
+        if count < len(rest_qs):
+            if rest_qs[count] not in pos:
+                candidate = rest_qs[count]
+
+        if count >= len(rest_qs) or candidate not in id2data:
+            while True:
+                candidate = random.choice(id2data_list)
+                if candidate not in set().union(rest_qs, [query_q]):
+                    break
+
+        processCandidate(sample, candidate, id2data, max_title, max_body)
+        count += 1
+
+    if len(sample['similar']) < MAX_POS:
+        while len(sample['similar']) < MAX_POS:
+            sample['similar'].append(-1)
+
 class AskUbuntuDataset(data.Dataset):
     def __init__(self, path, id2data, max_title, max_body, isTrain):
         self.path = path
@@ -37,158 +114,54 @@ class AskUbuntuDataset(data.Dataset):
                 split = line.split('\t')
                 q = split[0]
                 pos = split[1].split()
-                negs = split[2].split()
+                rest_q = split[2].split()
 
                 if isTrain:
-                    negs = [x for x in negs if x not in pos]
+                    negs = [x for x in rest_q if x not in pos]
 
                     for p in pos:
-                        sample = self.createTrainSample(q, p, negs, pos, max_title, max_body)
+                        sample = self.createSample(q, p, negs, pos, max_title, max_body, True)
                         if sample != None:
                             self.dataset.append(sample)
                 else:
                     if len(pos) > 0:
-                        sample = self.createEvalSample(q, negs, pos, max_title, max_body)
+                        sample = self.createSample(q, None, rest_q, pos, max_title, max_body, False)
                     if sample != None:
                         self.dataset.append(sample)
 
-    def createEvalSample(self, query_q, rest_qs, pos, max_title, max_body):
 
-        if query_q not in self.id2data:
-            return None
-
-        (q_title, qt_mask), (q_body, qb_mask) = self.id2data[query_q]
-
-        qt_mask = padmask(qt_mask, max_title)
-        qb_mask = padmask(qb_mask, max_body)
-
-        pad(q_title, max_title)
-        pad(q_body, max_body)
-
-        sample = {
-        'titles': [q_title],
-        'bodies':[q_body],
-        'titles_masks':[qt_mask],
-        'bodies_masks':[qb_mask],
-        'similar':[]
-        }
-
-        count = 0
-        count_pos = 0
-
-        while count < MAX_QCOUNT:
-            candidate = None
-
-            if count_pos < MAX_POS and count_pos < len(pos):
-                candidate = pos[count_pos]
-                sample['similar'].append(count)
-                count_pos += 1
-
-            if count < len(rest_qs):
-                if rest_qs[count] not in pos:
-                    candidate = rest_qs[count]
-
-            if count >= len(rest_qs) or candidate not in self.id2data:
-                while True:
-                    candidate = random.choice(self.id2data_list)
-                    if candidate not in set().union(rest_qs, [query_q]):
-                        break
-
-            (title, t_mask), (body, b_mask) = self.id2data[candidate]
-
-            t_mask = padmask(t_mask, max_title)
-            b_mask = padmask(b_mask, max_body)
-
-            pad(title, max_title)
-            pad(body, max_body)
-
-            sample['titles'].append(title)
-            sample['bodies'].append(body)
-            sample['titles_masks'].append(t_mask)
-            sample['bodies_masks'].append(b_mask)
-
-            count += 1
-
-        if len(sample['similar']) < MAX_POS:
-            while len(sample['similar']) < MAX_POS:
-                sample['similar'].append(-1)
-
-        for key in sample:
-            torch.LongTensor(sample[key])
-        '''
-        sample['titles'] = torch.LongTensor(sample['titles'])
-        sample['bodies'] = torch.LongTensor(sample['bodies'])
-        sample['titles_masks'] = torch.LongTensor(sample['titles_masks'])
-        sample['bodies_masks'] = torch.LongTensor(sample['bodies_masks'])
-        sample['similar'] = torch.LongTensor(sample['similar'])
-        '''
-
-        return sample
-
-
-    def createTrainSample(self, q, p, negs, pos, max_title, max_body):
-        if q not in self.id2data or p not in self.id2data:
+    def createSample(self, q, p, rest_qs, pos, max_title, max_body, isTrain):
+        if (q not in self.id2data and p == None) or (q not in self.id2data or p not in self.id2data):
             return None
 
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[q]
-        (p_title, pt_mask), (p_body, pb_mask) = self.id2data[p]
-
         qt_mask = padmask(qt_mask, max_title)
         qb_mask = padmask(qb_mask, max_body)
-        pt_mask = padmask(pt_mask, max_title)
-        pb_mask = padmask(pb_mask, max_body)
-
         pad(q_title, max_title)
         pad(q_body, max_body)
-        pad(p_title, max_title)
-        pad(p_body, max_body)
 
-        sample = {
-        'titles': [q_title, p_title],
-        'bodies':[q_body, p_body],
-        'titles_masks':[qt_mask, pt_mask],
-        'bodies_masks':[qb_mask, pb_mask]
-        }
+        if isTrain:
+            (p_title, pt_mask), (p_body, pb_mask) = self.id2data[p]
+            pt_mask = padmask(pt_mask, max_title)
+            pb_mask = padmask(pb_mask, max_body)
+            pad(p_title, max_title)
+            pad(p_body, max_body)
+            sample = trainSampleDic(q_title, p_title, q_body, p_body, qt_mask, pt_mask, qb_mask, pb_mask)
+        else:
+            sample = evalSampleDic(q_title, q_body, qt_mask, qb_mask)
 
-        count_negs = 0
+        random.shuffle(rest_qs)
 
-        random.shuffle(negs)
+        if isTrain == False:
+            random.shuffle(pos)
+            fillInEvalSample(sample, q, rest_qs, pos, self.id2data, self.id2data_list, max_title, max_body)
+        else:
+            fillInTrainSample(sample, p, q, rest_qs, pos, self.id2data, self.id2data_list, max_title, max_body)
 
-        while count_negs < MAX_QCOUNT-1:
+        for key in sample:
+            sample[key] = torch.LongTensor(sample[key])
 
-            if count_negs < len(negs):
-                neg_candidate = negs[count_negs]
-            if count_negs >= len(negs) or neg_candidate not in self.id2data:
-                '''
-                pick a negative example randomly when a negative example does not exist
-                in the dictionary of examples or the data has fewer negative examples than it should
-                '''
-                while True:
-                    neg_candidate = random.choice(self.id2data_list)
-                    if neg_candidate not in set().union(negs, pos, [q]):
-                        break
-
-            (title, t_mask), (body, b_mask) = self.id2data[neg_candidate]
-
-            t_mask = padmask(t_mask, max_title)
-            b_mask = padmask(b_mask, max_body)
-
-            pad(title, max_title)
-            pad(body, max_body)
-
-            sample['titles'].append(title)
-            sample['bodies'].append(body)
-            sample['titles_masks'].append(t_mask)
-            sample['bodies_masks'].append(b_mask)
-
-            count_negs += 1
-
-        sample['titles'] = torch.LongTensor(sample['titles'])
-        sample['bodies'] = torch.LongTensor(sample['bodies'])
-        sample['titles_masks'] = torch.LongTensor(sample['titles_masks'])
-        sample['bodies_masks'] = torch.LongTensor(sample['bodies_masks'])
-
-        return sample  #we do not need y
+        return sample
 
     def __len__(self):
         return len(self.dataset)
