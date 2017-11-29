@@ -6,7 +6,6 @@ import torch.utils.data as data
 import random
 
 MAX_QCOUNT = 20
-MAX_POS = 10
 size = 0
 
 def pad(arr, l):
@@ -56,6 +55,13 @@ def processCandidate(sample, candidate, id2data, max_title, max_body):
     sample['titles_masks'].append(t_mask)
     sample['bodies_masks'].append(b_mask)
 
+def getCandidate(uset, id2data_list):
+    while True:
+        candidate = random.choice(id2data_list)
+        if candidate not in uset:
+            break
+    return candidate
+
 def fillInTrainSample(sample, p, q, negs, pos, id2data, id2data_list, max_title, max_body):
     count_negs = 0
 
@@ -64,10 +70,7 @@ def fillInTrainSample(sample, p, q, negs, pos, id2data, id2data_list, max_title,
         if count_negs < len(negs):
             neg_candidate = negs[count_negs]
         if count_negs >= len(negs) or neg_candidate not in id2data:
-            while True:
-                neg_candidate = random.choice(id2data_list)
-                if neg_candidate not in set().union(negs, pos, [q]):
-                    break
+            neg_candidate = getCandidate(set().union(negs, pos, [q]), id2data_list)
 
         processCandidate(sample, neg_candidate, id2data, max_title, max_body)
         count_negs += 1
@@ -78,7 +81,7 @@ def fillInEvalSample(sample, query_q, rest_qs, pos, id2data, id2data_list, max_t
 
     while count < MAX_QCOUNT:
         candidate = None
-        if count_pos < MAX_POS and count_pos < len(pos):
+        if count_pos < len(pos):
             candidate = pos[count_pos]
             sample['similar'].append(count)
             count_pos += 1
@@ -88,16 +91,13 @@ def fillInEvalSample(sample, query_q, rest_qs, pos, id2data, id2data_list, max_t
                 candidate = rest_qs[count]
 
         if count >= len(rest_qs) or candidate not in id2data:
-            while True:
-                candidate = random.choice(id2data_list)
-                if candidate not in set().union(rest_qs, [query_q]):
-                    break
+            candidate = getCandidate(set().union(rest_qs, [query_q]), id2data_list)
 
         processCandidate(sample, candidate, id2data, max_title, max_body)
         count += 1
 
-    if len(sample['similar']) < MAX_POS:
-        while len(sample['similar']) < MAX_POS:
+    if len(sample['similar']) < MAX_QCOUNT:
+        while len(sample['similar']) < MAX_QCOUNT:
             sample['similar'].append(-1)
 
 class AskUbuntuDataset(data.Dataset):

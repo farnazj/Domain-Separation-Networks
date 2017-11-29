@@ -53,7 +53,6 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
 def train_model(train_data, dev_data, model, args):
-
     if args.cuda:
         model = model.cuda()
 
@@ -62,8 +61,7 @@ def train_model(train_data, dev_data, model, args):
     if args.train:
         model.train()
 
-    for epoch in range(1, args.epochs):
-
+    for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
         run_epoch(train_data, True, model, optimizer, args)
@@ -164,7 +162,6 @@ def run_epoch(data, is_training, model, optimizer, args):
         print('Average Train loss: {:.6f}'.format(avg_loss))
         print()
     else:
-        print sum_ranks, num_samples
         _map = sum_av_prec/num_samples
         _mrr = sum_ranks/num_samples
         _pat5 = top_5/(num_samples*5)
