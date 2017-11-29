@@ -1,4 +1,4 @@
-# nlp_project
+#domain adaptation
 To train the model, run the following command:
 python main.py --train --model_name lstm/cnn --save_path model_name.pt 
 
