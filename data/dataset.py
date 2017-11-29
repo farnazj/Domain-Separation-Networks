@@ -120,18 +120,18 @@ class AskUbuntuDataset(data.Dataset):
                     negs = [x for x in rest_q if x not in pos]
 
                     for p in pos:
-                        sample = self.createSample(q, p, negs, pos, max_title, max_body, True)
+                        sample = self.createSample(q, p, negs, pos, max_title, max_body, isTrain)
                         if sample != None:
                             self.dataset.append(sample)
                 else:
                     if len(pos) > 0:
-                        sample = self.createSample(q, None, rest_q, pos, max_title, max_body, False)
+                        sample = self.createSample(q, -1, rest_q, pos, max_title, max_body, isTrain)
                     if sample != None:
                         self.dataset.append(sample)
 
 
     def createSample(self, q, p, rest_qs, pos, max_title, max_body, isTrain):
-        if (q not in self.id2data and p == None) or (q not in self.id2data or p not in self.id2data):
+        if q not in self.id2data or (p not in self.id2data and p != -1):
             return None
 
         (q_title, qt_mask), (q_body, qb_mask) = self.id2data[q]

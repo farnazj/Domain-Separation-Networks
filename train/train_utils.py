@@ -7,6 +7,51 @@ import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 
+
+def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
+    scores_list = []
+    for j in range(20):
+        x = cs_tensor[i, j].data
+        x = x.numpy().item()
+        scores_list.append( (x, j) )
+
+    scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
+
+    count = 0.0
+    last_index = -1
+    sum_prec = 0.0
+    similar_indices = []
+    flag = 0
+
+    for k in similar:
+        if k != -1:
+            similar_indices.append(k)
+
+    for j in range(20):
+        if scores_list[j][1] in similar_indices:
+            count += 1
+            sum_prec += count/(j+1)
+            last_index = j+1
+
+            if flag == 0:
+                sum_ranks += 1.0/(j+1)
+                flag = 1
+
+            if j == 0:
+                top_1 += 1
+
+            if j < 5:
+                top_5 += 1
+
+
+    if last_index > 0:
+        sum_prec /= last_index
+
+    sum_av_prec += sum_prec
+    num_samples += 1
+
+    return sum_av_prec, sum_ranks, num_samples, top_5, top_1
+
 def train_model(train_data, dev_data, model, args):
 
     if args.cuda:
@@ -57,9 +102,7 @@ def run_epoch(data, is_training, model, optimizer, args):
         model.eval()
 
     sum_av_prec = 0.0
-    num_scores = 0.0
     sum_ranks = 0.0
-    all_similar = 0.0
     num_samples = 0.0
     top_5 = 0.0
     top_1 = 0.0
@@ -110,63 +153,10 @@ def run_epoch(data, is_training, model, optimizer, args):
             losses.append(loss.cpu().data[0])
 
         else:
-            #sort by cosine similarity scores and preserve indices    n1 n2 p1 n3 n4 n5 p2 n6
-
             #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
-
             for i in range(args.batch_size):
-                scores_list = []
-                for j in range(20):
-                    x = cs_tensor[i, j].data
-                    x = x.numpy().item()
-                    scores_list.append( (x, j) )
-
-                scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
-
-                count = 0.0
-                last_index = -1
-                sum_prec = 0.0
-                similar_indices = []
-                flag = 0
-
-                #similar_indices = [k in batch['similar'][i] if k != -1]
-
-                for k in batch['similar'][i]:
-                    if k != -1:
-                        similar_indices.append(k)
-
-                for j in range(20):
-                    if scores_list[j][1] in similar_indices:
-                        count += 1
-                        sum_prec += count/(j+1)
-                        last_index = j+1
-
-                        if flag == 0:
-                            sum_ranks += 1.0/(j+1)
-                            flag = 1
-
-                        if j == 0:
-                            top_1 += 1
-
-                        if j < 5:
-                            top_5 += 1
-
-
-                if last_index > 0:
-                    sum_prec /= last_index
-
-                sum_av_prec += sum_prec
-                num_samples += 1
-
-                '''
-                if len(similar_indices) < 5:
-                    all_similar += len(similar_indices)
-                else:
-                    all_similar += 5
-                '''
-
-
-    #---> Report MAP, MRR, P@1 and P@5
+                sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
+                updateScores(args, cs_tensor, batch['similar'][i], i, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 
     # Calculate epoch level scores
     if is_training:
