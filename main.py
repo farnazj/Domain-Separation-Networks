@@ -10,6 +10,7 @@ LR = 0.001
 HIDDEN_SIZE = 240
 EPOCHS = 30
 BATCH_SIZE = 16
+WEIGHT_DECAY = 1e-6
 
 TRAIN = False
 TEST = False
@@ -33,6 +34,7 @@ parser.add_argument('--test', action='store_true', default=TEST, help='enable te
 # task
 parser.add_argument('--snapshot', type=str, default='model.pt', help='filename of model snapshot to load[default: None]')
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
+parser.add_argument('--weight_decay', type=float, default=WEIGHT_DECAY, help='weight decay')
 
 
 
