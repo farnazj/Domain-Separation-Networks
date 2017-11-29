@@ -76,25 +76,11 @@ def fillInTrainSample(sample, p, q, negs, pos, id2data, id2data_list, max_title,
         count_negs += 1
 
 def fillInEvalSample(sample, query_q, rest_qs, pos, id2data, id2data_list, max_title, max_body):
-    count = 0
-    count_pos = 0
 
-    while count < MAX_QCOUNT:
-        candidate = None
-        if count_pos < len(pos):
-            candidate = pos[count_pos]
-            sample['similar'].append(count)
-            count_pos += 1
-
-        if count < len(rest_qs):
-            if rest_qs[count] not in pos:
-                candidate = rest_qs[count]
-
-        if count >= len(rest_qs) or candidate not in id2data:
-            candidate = getCandidate(set().union(rest_qs, [query_q]), id2data_list)
-
-        processCandidate(sample, candidate, id2data, max_title, max_body)
-        count += 1
+    for i, item in enumerate(rest_qs):
+        if item in pos:
+            sample['similar'].append(i)
+        processCandidate(sample, item, id2data, max_title, max_body)
 
     if len(sample['similar']) < MAX_QCOUNT:
         while len(sample['similar']) < MAX_QCOUNT:

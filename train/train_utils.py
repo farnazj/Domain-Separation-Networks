@@ -78,7 +78,7 @@ def test_model(test_data, model, args):
         model = model.cuda()
 
     print "*******test********"
-    run_epoch(test_data, False, model, optimizer, args)
+    run_epoch(test_data, False, model, None, args)
 
 
 def run_epoch(data, is_training, model, optimizer, args):
