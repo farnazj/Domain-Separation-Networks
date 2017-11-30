@@ -34,7 +34,7 @@ class LSTM(nn.Module):
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 

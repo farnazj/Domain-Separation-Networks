@@ -72,7 +72,8 @@ def train_model(train_data, dev_data, model, args):
 
         run_epoch(train_data, True, model, optimizer, args)
 
-        torch.save(model, args.save_path)
+        model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
+        torch.save(model, model_path)
 
         print "*******dev********"
         run_epoch(dev_data, False, model, optimizer, args)
