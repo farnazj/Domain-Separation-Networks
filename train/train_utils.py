@@ -27,8 +27,10 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
         if k != -1:
             similar_indices.append(k)
 
+    count_similar = 0
     for j in range(20):
         if scores_list[j][1] in similar_indices:
+            count_similar += 1
             count += 1
             sum_prec += count/(j+1)
             last_index = j+1
@@ -42,6 +44,10 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
 
             if j < 5:
                 top_5 += 1
+        else:
+            if count_similar < len(similar_indices):
+                sum_prec += count/(j+1)
+
 
 
     if last_index > 0:
