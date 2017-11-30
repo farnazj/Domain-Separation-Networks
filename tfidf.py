@@ -73,6 +73,11 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 	similar_indices = []
 	flag = 0
 
+	similars_total_count = [1 for x in scores_list if x[1] == 1]
+	similars_total_count = len(similars_total_count)
+
+	count_similar = 0
+
 	for j in range(len(scores_list)):
 		if scores_list[j][1] == 1:
 			count += 1
@@ -89,6 +94,11 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 			if j < 5:
 				top_5 += 1
 
+		else:
+			if count_similar < similars_total_count:
+				sum_prec += count/(j+1)
+
+
 	if last_index > 0:
 		sum_prec /= last_index
 
@@ -96,6 +106,7 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 	num_samples += 1
 
 	return sum_av_prec, sum_ranks, num_samples, top_5, top_1
+
 
 
 def createSamplesDataset(path, CROSS_DOMAIN):
