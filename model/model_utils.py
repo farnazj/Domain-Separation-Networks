@@ -50,10 +50,17 @@ class LSTM(nn.Module):
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
+        if self.args.cuda:
+            h0, c0 = h0.cuda(), c0.cuda()
+
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
+
+        if self.args.cuda:
+            masks_expanded = masks_expanded.cuda()
+            
         masked_seq = masks_expanded * output
         averaged_hidden_states = torch.mean(masked_seq, 1)
 
