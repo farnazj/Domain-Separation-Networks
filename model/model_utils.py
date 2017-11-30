@@ -60,7 +60,7 @@ class LSTM(nn.Module):
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
-            
+
         masked_seq = masks_expanded * output
         averaged_hidden_states = torch.mean(masked_seq, 1)
 
@@ -119,6 +119,9 @@ class CNN(nn.Module):
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(1).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],convolution.size(1), masks_reshaped.data.shape[2] )
 
+        if self.args.cuda:
+            masks_expanded = masks_expanded.cuda()
+            
         masked_conv = masks_expanded * convolution
         tang = F.tanh(masked_conv)
         output = F.adaptive_avg_pool1d(tang, 1)
