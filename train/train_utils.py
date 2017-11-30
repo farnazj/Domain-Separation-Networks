@@ -122,12 +122,18 @@ def run_epoch(data, is_training, model, optimizer, args):
             optimizer.zero_grad()
 
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
-        bodies = autograd.Variable(batch['bodies'])
-        bodies_masks = autograd.Variable(batch['bodies_masks'])
+        bodies, bodies_masks = autograd.Variable(batch['bodies']), autograd.Variable(batch['bodies_masks'])
+
+        if args.cuda:
+            bodies, bodies_masks = bodies.cuda(), bodies_masks.cuda()
+
         out_bodies = model(bodies, bodies_masks)
 
-        titles = autograd.Variable(batch['titles'])
-        titles_masks = autograd.Variable(batch['titles_masks'])
+        titles, titles_masks = autograd.Variable(batch['titles']), autograd.Variable(batch['titles_masks'])
+
+        if args.cuda:
+            titles, titles_masks = titles.cuda(), titles_masks.cuda()
+
         out_titles = model(titles, titles_masks)
 
         hidden_rep = (out_bodies + out_titles)/2
@@ -136,6 +142,9 @@ def run_epoch(data, is_training, model, optimizer, args):
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
 
         cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
+
+        if args.cuda:
+            cs_tensor = cs_tensor.cuda()
 
         #calculate cosine similarity for every query vs. neg q pair
 
@@ -147,6 +156,8 @@ def run_epoch(data, is_training, model, optimizer, args):
         X_scores = torch.stack(cs_tensor, 0)
         y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
 
+        if args.cuda:
+                y_targets = y_targets.cuda()
 
         if is_training:
             loss = criterion(X_scores, y_targets)
