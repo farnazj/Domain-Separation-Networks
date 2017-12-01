@@ -63,40 +63,42 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
 
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
-def train_model(train_data, dev_data, model, args):
+
+def train_model(train_data, dev_data, encoder_model, domain_discriminator, args):
     if args.cuda:
-        model = model.cuda()
+        encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr, weight_decay=args.weight_decay)
-
-    if args.train:
-        model.train()
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters() , lr=args.lr[0], weight_decay=args.weight_decay[0])
+    domain_optimizer = torch.optim.Adam(domain_discriminator.parameters() , lr=args.lr[1], weight_decay=args.weight_decay[1])
 
     for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        run_epoch(train_data, True, model, optimizer, args)
+        run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
 
         model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
         torch.save(model, model_path)
 
         print "*******dev********"
-        run_epoch(dev_data, False, model, optimizer, args)
+        run_epoch(dev_data, False, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
 
 
 
-def test_model(test_data, model, args):
+def test_model(test_data, encoder_model, args):
     if args.cuda:
-        model = model.cuda()
+        encoder_model = encoder_model.cuda()
 
     print "*******test********"
-    run_epoch(test_data, False, model, None, args)
+    run_epoch(test_data, False, (encoder_model, None) , (None, None), args)
 
 
-def run_epoch(data, is_training, model, optimizer, args):
+def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, args):
     '''
     Train model for one pass of train data, and return loss, acccuracy
     '''
+    encoder_model, encoder_optimizer = encoder_model_optimizer
+    domain_model, domain_optimizer = domain_model_optimizer
+
     data_loader = torch.utils.data.DataLoader(
         data,
         batch_size=args.batch_size,
@@ -107,15 +109,17 @@ def run_epoch(data, is_training, model, optimizer, args):
     losses = []
 
     if is_training:
-        model.train()
+        encoder_model.train()
+        domain_model.train()
     else:
-        model.eval()
+        encoder_model.eval()
 
     sum_av_prec = 0.0
     sum_ranks = 0.0
     num_samples = 0.0
     top_5 = 0.0
     top_1 = 0.0
+
 
     for batch in tqdm(data_loader):
 

@@ -10,16 +10,37 @@ import datetime
 import pdb
 
 
-def get_model(embeddings, args):
-    print("\nBuilding model...")
+def get_models(embeddings, args):
+    print("\nBuilding models...")
 
     if args.model_name == 'cnn':
-        return CNN(embeddings, args)
+        encoder_model = CNN(embeddings, args)
     elif args.model_name == 'lstm':
-        return LSTM(embeddings, args)
+        encoder_model = LSTM(embeddings, args)
     else:
         raise Exception("Model name {} not supported!".format(args.model_name))
 
+    domain_discriminator = FFN(args)
+
+    return encoder_model, domain_discriminator
+
+
+class FFN(nn.Module):
+
+    def __init__(self, args):
+        super(FFN, self).__init__()
+
+        self.args = args
+        output_size = int(self.args.hd_size/2) #tunable
+        self.W_hidden = nn.Linear(self.args.hd_size, output_size)
+        self.W_out = nn.Linear(output_size, 2)
+        self.softmax = nn.LogSoftmax()
+
+    def forward(self, features):
+        hidden_out = F.relu(self.W_hidden(features))
+        out_result = W_out(hidden_out)
+        output = self.softmax(out_result)
+        return output
 
 
 class LSTM(nn.Module):
@@ -121,7 +142,7 @@ class CNN(nn.Module):
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
-            
+
         masked_conv = masks_expanded * convolution
         tang = F.tanh(masked_conv)
         output = F.adaptive_avg_pool1d(tang, 1)
