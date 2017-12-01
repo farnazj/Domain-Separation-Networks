@@ -12,7 +12,12 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
     scores_list = []
     for j in range(20):
         x = cs_tensor[i, j].data
-        x = x.numpy().item()
+
+        if args.cuda:
+            x = x.cpu().numpy().item()
+        else:
+            x = x.numpy().item()
+
         scores_list.append( (x, j) )
 
     scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
@@ -27,8 +32,10 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
         if k != -1:
             similar_indices.append(k)
 
+    count_similar = 0
     for j in range(20):
         if scores_list[j][1] in similar_indices:
+            count_similar += 1
             count += 1
             sum_prec += count/(j+1)
             last_index = j+1
@@ -42,6 +49,10 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
 
             if j < 5:
                 top_5 += 1
+        else:
+            if count_similar < len(similar_indices):
+                sum_prec += count/(j+1)
+
 
 
     if last_index > 0:
@@ -52,39 +63,42 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
 
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
-def train_model(train_data, dev_data, model, args):
+
+def train_model(train_data, dev_data, encoder_model, domain_discriminator, args):
     if args.cuda:
-        model = model.cuda()
+        encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr, weight_decay=args.weight_decay)
-
-    if args.train:
-        model.train()
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters() , lr=args.lr[0], weight_decay=args.weight_decay[0])
+    domain_optimizer = torch.optim.Adam(domain_discriminator.parameters() , lr=args.lr[1], weight_decay=args.weight_decay[1])
 
     for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        run_epoch(train_data, True, model, optimizer, args)
+        run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
 
-        torch.save(model, args.save_path)
+        model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
+        torch.save(model, model_path)
 
         print "*******dev********"
-        run_epoch(dev_data, False, model, optimizer, args)
+        run_epoch(dev_data, False, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
 
 
 
-def test_model(test_data, model, args):
+def test_model(test_data, encoder_model, args):
     if args.cuda:
-        model = model.cuda()
+        encoder_model = encoder_model.cuda()
 
     print "*******test********"
-    run_epoch(test_data, False, model, None, args)
+    run_epoch(test_data, False, (encoder_model, None) , (None, None), args)
 
 
-def run_epoch(data, is_training, model, optimizer, args):
+def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, args):
     '''
     Train model for one pass of train data, and return loss, acccuracy
     '''
+    encoder_model, encoder_optimizer = encoder_model_optimizer
+    domain_model, domain_optimizer = domain_model_optimizer
+
     data_loader = torch.utils.data.DataLoader(
         data,
         batch_size=args.batch_size,
@@ -95,15 +109,17 @@ def run_epoch(data, is_training, model, optimizer, args):
     losses = []
 
     if is_training:
-        model.train()
+        encoder_model.train()
+        domain_model.train()
     else:
-        model.eval()
+        encoder_model.eval()
 
     sum_av_prec = 0.0
     sum_ranks = 0.0
     num_samples = 0.0
     top_5 = 0.0
     top_1 = 0.0
+
 
     for batch in tqdm(data_loader):
 
@@ -115,12 +131,18 @@ def run_epoch(data, is_training, model, optimizer, args):
             optimizer.zero_grad()
 
         #out - batch of samples, where every sample is 2d tensor of avg hidden states
-        bodies = autograd.Variable(batch['bodies'])
-        bodies_masks = autograd.Variable(batch['bodies_masks'])
+        bodies, bodies_masks = autograd.Variable(batch['bodies']), autograd.Variable(batch['bodies_masks'])
+
+        if args.cuda:
+            bodies, bodies_masks = bodies.cuda(), bodies_masks.cuda()
+
         out_bodies = model(bodies, bodies_masks)
 
-        titles = autograd.Variable(batch['titles'])
-        titles_masks = autograd.Variable(batch['titles_masks'])
+        titles, titles_masks = autograd.Variable(batch['titles']), autograd.Variable(batch['titles_masks'])
+
+        if args.cuda:
+            titles, titles_masks = titles.cuda(), titles_masks.cuda()
+
         out_titles = model(titles, titles_masks)
 
         hidden_rep = (out_bodies + out_titles)/2
@@ -129,6 +151,9 @@ def run_epoch(data, is_training, model, optimizer, args):
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
 
         cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
+
+        if args.cuda:
+            cs_tensor = cs_tensor.cuda()
 
         #calculate cosine similarity for every query vs. neg q pair
 
@@ -140,6 +165,8 @@ def run_epoch(data, is_training, model, optimizer, args):
         X_scores = torch.stack(cs_tensor, 0)
         y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
 
+        if args.cuda:
+                y_targets = y_targets.cuda()
 
         if is_training:
             loss = criterion(X_scores, y_targets)

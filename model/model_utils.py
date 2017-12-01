@@ -10,16 +10,37 @@ import datetime
 import pdb
 
 
-def get_model(embeddings, args):
-    print("\nBuilding model...")
+def get_models(embeddings, args):
+    print("\nBuilding models...")
 
     if args.model_name == 'cnn':
-        return CNN(embeddings, args)
+        encoder_model = CNN(embeddings, args)
     elif args.model_name == 'lstm':
-        return LSTM(embeddings, args)
+        encoder_model = LSTM(embeddings, args)
     else:
         raise Exception("Model name {} not supported!".format(args.model_name))
 
+    domain_discriminator = FFN(args)
+
+    return encoder_model, domain_discriminator
+
+
+class FFN(nn.Module):
+
+    def __init__(self, args):
+        super(FFN, self).__init__()
+
+        self.args = args
+        output_size = int(self.args.hd_size/2) #tunable
+        self.W_hidden = nn.Linear(self.args.hd_size, output_size)
+        self.W_out = nn.Linear(output_size, 2)
+        self.softmax = nn.LogSoftmax()
+
+    def forward(self, features):
+        hidden_out = F.relu(self.W_hidden(features))
+        out_result = W_out(hidden_out)
+        output = self.softmax(out_result)
+        return output
 
 
 class LSTM(nn.Module):
@@ -34,7 +55,7 @@ class LSTM(nn.Module):
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -50,10 +71,17 @@ class LSTM(nn.Module):
         h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
         c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
+        if self.args.cuda:
+            h0, c0 = h0.cuda(), c0.cuda()
+
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
+
+        if self.args.cuda:
+            masks_expanded = masks_expanded.cuda()
+
         masked_seq = masks_expanded * output
         averaged_hidden_states = torch.mean(masked_seq, 1)
 
@@ -111,6 +139,9 @@ class CNN(nn.Module):
 
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(1).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],convolution.size(1), masks_reshaped.data.shape[2] )
+
+        if self.args.cuda:
+            masks_expanded = masks_expanded.cuda()
 
         masked_conv = masks_expanded * convolution
         tang = F.tanh(masked_conv)
