@@ -12,7 +12,12 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
     scores_list = []
     for j in range(20):
         x = cs_tensor[i, j].data
-        x = x.numpy().item()
+
+        if args.cuda:
+            x = x.cpu().numpy().item()
+        else:
+            x = x.numpy().item()
+
         scores_list.append( (x, j) )
 
     scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
