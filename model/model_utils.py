@@ -37,8 +37,10 @@ class FFN(nn.Module):
         self.softmax = nn.LogSoftmax()
 
     def forward(self, features):
-        hidden_out = F.relu(self.W_hidden(features))
-        out_result = W_out(hidden_out)
+        squeezed_features = features.squeeze(1)
+        
+        hidden_out = F.relu(self.W_hidden(squeezed_features))
+        out_result = self.W_out(hidden_out)
         output = self.softmax(out_result)
         return output
 

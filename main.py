@@ -6,11 +6,12 @@ import model.model_utils as model_utils
 import train.train_utils as train_utils
 import cPickle as pickle
 
-LR = [0.001, 0.002]
+
 HIDDEN_SIZE = 240
 EPOCHS = 40
 BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6]
+LR = [1e-3, -1e-3]
 DROPOUT = 0.1
 
 TRAIN = False
@@ -20,7 +21,7 @@ MODEL = 'cnn'
 
 parser = argparse.ArgumentParser(description='Domain Adaptation in Similar Question Retrieval')
 # learning
-parser.add_argument('--lr', type=float, nargs='+' ,default=LR, help='initial learning rates for the encoder and the domain discriminator respectively [default: 0.001 0.002]')
+parser.add_argument('--lr', type=float, nargs=2 ,default=LR, help='initial learning rates for the encoder and the domain discriminator respectively')
 parser.add_argument('--hd_size', type=int, default=HIDDEN_SIZE, help='')
 parser.add_argument('--epochs', type=int, default=EPOCHS, help='number of epochs for train [default: 256]')
 parser.add_argument('--batch_size', type=int, default=BATCH_SIZE, help='batch size for training [default: 64]')
@@ -35,7 +36,7 @@ parser.add_argument('--test', action='store_true', default=TEST, help='enable te
 # task
 parser.add_argument('--snapshot', type=str, default=None, help='filename of encoder model snapshot to load[default: None]')
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
-parser.add_argument('--weight_decay', type=float, default=WEIGHT_DECAY, help='weight decays for the encoder and the domain discriminator respectively')
+parser.add_argument('--weight_decay', type=float, nargs=2, default=WEIGHT_DECAY, help='weight decays for the encoder and the domain discriminator respectively')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
 
 

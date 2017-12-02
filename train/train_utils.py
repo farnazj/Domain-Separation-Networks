@@ -64,6 +64,24 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
 
+def runEncoderOnQuestions(samples, encoder_model, args):
+
+    bodies, bodies_masks = autograd.Variable(samples['bodies']), autograd.Variable(samples['bodies_masks'])
+    if args.cuda:
+        bodies, bodies_masks = bodies.cuda(), bodies_masks.cuda()
+
+    out_bodies = encoder_model(bodies, bodies_masks)
+
+    titles, titles_masks = autograd.Variable(samples['titles']), autograd.Variable(samples['titles_masks'])
+    if args.cuda:
+        titles, titles_masks = titles.cuda(), titles_masks.cuda()
+
+    out_titles = encoder_model(titles, titles_masks)
+
+    hidden_rep = (out_bodies + out_titles)/2
+    return hidden_rep
+
+
 def train_model(train_data, dev_data, encoder_model, domain_discriminator, args):
     if args.cuda:
         encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
@@ -90,6 +108,7 @@ def test_model(test_data, encoder_model, args):
 
     print "*******test********"
     run_epoch(test_data, False, (encoder_model, None) , (None, None), args)
+
 
 
 def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, args):
@@ -120,6 +139,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
     top_5 = 0.0
     top_1 = 0.0
 
+    nll_loss = nn.NLLLoss()
 
     for batch in tqdm(data_loader):
 
@@ -128,54 +148,64 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         #pdb.set_trace()
 
         if is_training:
-            optimizer.zero_grad()
+            encoder_optimizer.zero_grad()
+            domain_optimizer.zero_grad()
 
-        #out - batch of samples, where every sample is 2d tensor of avg hidden states
-        bodies, bodies_masks = autograd.Variable(batch['bodies']), autograd.Variable(batch['bodies_masks'])
+        ###source question encoder####
+        if is_training:
+            samples = batch['samples']
+        else:
+            samples = batch
 
-        if args.cuda:
-            bodies, bodies_masks = bodies.cuda(), bodies_masks.cuda()
-
-        out_bodies = model(bodies, bodies_masks)
-
-        titles, titles_masks = autograd.Variable(batch['titles']), autograd.Variable(batch['titles_masks'])
-
-        if args.cuda:
-            titles, titles_masks = titles.cuda(), titles_masks.cuda()
-
-        out_titles = model(titles, titles_masks)
-
-        hidden_rep = (out_bodies + out_titles)/2
+        #output - batch of samples, where every sample is 2d tensor of avg hidden states
+        hidden_rep = runEncoderOnQuestions(samples, encoder_model, args)
 
         #Calculate cosine similarities here and construct X_scores
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
-
         cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
 
         if args.cuda:
             cs_tensor = cs_tensor.cuda()
 
         #calculate cosine similarity for every query vs. neg q pair
-
         for j in range(1, hidden_rep.size(1)):
             for i in range(hidden_rep.size(0)):
                 cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ], hidden_rep[i, j, ])
-                #cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ].type(torch.FloatTensor), hidden_rep[i, j, ].type(torch.FloatTensor))
 
         X_scores = torch.stack(cs_tensor, 0)
         y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
 
         if args.cuda:
-                y_targets = y_targets.cuda()
+            y_targets = y_targets.cuda()
 
         if is_training:
-            loss = criterion(X_scores, y_targets)
-            print "Loss in batch", loss.data
+            #####domain classifier#####
+            cross_d_questions = batch['question']
+            avg_hidden_rep = runEncoderOnQuestions(cross_d_questions, encoder_model, args)
 
-            loss.backward()
-            optimizer.step()
+            predicted_domains = domain_model(avg_hidden_rep)
 
-            losses.append(loss.cpu().data[0])
+            true_domains = autograd.Variable(cross_d_questions['domain']).squeeze(1)
+
+            if args.cuda:
+                true_domains = true_domains.cuda()
+
+            domain_classifier_loss = nll_loss(predicted_domains, true_domains)
+            print "Domain loss in batch", domain_classifier_loss.data
+
+            #calculate loss
+            encoder_loss = criterion(X_scores, y_targets)
+            print "Encoder loss in batch", encoder_loss.data
+
+            task_loss = encoder_loss - domain_classifier_loss
+            print "Task loss in batch", task_loss.data
+            print "\n\n"
+
+            task_loss.backward()
+            encoder_optimizer.step()
+            domain_optimizer.step()
+
+            losses.append(task_loss.cpu().data[0])
 
         else:
             #Average Precision = (sum_{i in j} P@i / j)  where j is the last index

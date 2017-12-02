@@ -46,7 +46,7 @@ def trainSampleDic(id2source_list, id2source, id2target,
     }
 
     label = random.choice([0,1])
-    if  label == 0:
+    if label == 0:
         choice = random.choice(id2source_list)
         (title, t_mask), (body, b_mask) = id2source[choice]
     else:
@@ -62,11 +62,11 @@ def trainSampleDic(id2source_list, id2source, id2target,
     pad(body, max_body)
 
     question = {
-    'body': [body],
-    'title': [title],
-    'bmask': [b_mask],
-    'tmask': [t_mask],
-    'label': [label]
+    'bodies': [body],
+    'titles': [title],
+    'bodies_masks': [b_mask],
+    'titles_masks': [t_mask],
+    'domain': [label]
     }
 
     sample = {
