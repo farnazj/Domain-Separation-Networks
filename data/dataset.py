@@ -24,12 +24,12 @@ def padmask(origlen, maxlen):
             m.append(0)
     return m
 
-def evalSampleDic(q_title, q_body, qt_mask, qb_mask):
+def evalSampleDic(q_title, p_title, q_body, p_body, qt_mask, pt_mask, qb_mask, pb_mask):
     sample = {
-    'titles': [q_title],
-    'bodies':[q_body],
-    'titles_masks':[qt_mask],
-    'bodies_masks':[qb_mask]
+    'titles': [q_title, p_title],
+    'bodies':[q_body, p_body],
+    'titles_masks':[qt_mask, pt_mask],
+    'bodies_masks':[qb_mask, pb_mask]
     }
     return sample
 
@@ -77,42 +77,6 @@ def trainSampleDic(id2source_list, id2source, id2target,
     return sample
 
 
-'''
-def trainSampleDic(id2source_list, id2source, id2target,
-                    domain_question, q_title, p_title, q_body,
-                    p_body, qt_mask, pt_mask, qb_mask, pb_mask, max_title, max_body):
-
-    label = random.choice([0,1])
-    if  label == 0:
-        choice = random.choice(id2source_list)
-        (title, t_mask), (body, b_mask) = id2source[choice]
-    else:
-        choice = random.choice(domain_question)
-        while choice not in domain_question:
-            choice = random.choice(domain_question)
-        (title, t_mask), (body, b_mask) = id2target[choice]
-
-    t_mask = padmask(t_mask, max_title)
-    b_mask = padmask(b_mask, max_body)
-
-    pad(title, max_title)
-    pad(body, max_body)
-
-    sample = {
-    'titles': [q_title, p_title],
-    'bodies':[q_body, p_body],
-    'titles_masks':[qt_mask, pt_mask],
-    'bodies_masks':[qb_mask, pb_mask],
-    'dq_body': [body],
-    'dq_title': [title],
-    'dq_bmask': [b_mask],
-    'dq_tmask': [t_mask],
-    'dq_label': [label]
-    }
-
-    return sample
-'''
-
 def processCandidate(sample, candidate, id2target, max_title, max_body, isTrain):
     (title, t_mask), (body, b_mask) = id2target[candidate]
 
@@ -133,13 +97,6 @@ def processCandidate(sample, candidate, id2target, max_title, max_body, isTrain)
     sampl['titles_masks'].append(t_mask)
     sampl['bodies_masks'].append(b_mask)
 
-
-    '''
-    sample['titles'].append(title)
-    sample['bodies'].append(body)
-    sample['titles_masks'].append(t_mask)
-    sample['bodies_masks'].append(b_mask)
-    '''
 
 def getCandidate(uset, id2data_list):
     while True:
@@ -185,18 +142,19 @@ def createSample(q, p, negs, pos, id2source, id2target, id2source_list, id2targe
     pad(q_title, max_title)
     pad(q_body, max_body)
 
-    if isTrain:
-        (p_title, pt_mask), (p_body, pb_mask) = id2data[p]
-        pt_mask = padmask(pt_mask, max_title)
-        pb_mask = padmask(pb_mask, max_body)
-        pad(p_title, max_title)
-        pad(p_body, max_body)
+    (p_title, pt_mask), (p_body, pb_mask) = id2data[p]
+    pt_mask = padmask(pt_mask, max_title)
+    pb_mask = padmask(pb_mask, max_body)
+    pad(p_title, max_title)
+    pad(p_body, max_body)
 
+    if isTrain:
         sample = trainSampleDic(id2source_list, id2source, id2target,
                             domain_question, q_title, p_title, q_body,
                             p_body, qt_mask, pt_mask, qb_mask, pb_mask, max_title, max_body)
     else:
-        sample = evalSampleDic(q_title, q_body, qt_mask, qb_mask)
+        #sample = evalSampleDic(q_title, q_body, qt_mask, qb_mask)
+        sample = evalSampleDic(q_title, p_title, q_body, p_body, qt_mask, pt_mask, qb_mask, pb_mask)
 
     random.shuffle(negs)
 
@@ -218,12 +176,6 @@ def createSample(q, p, negs, pos, id2source, id2target, id2source_list, id2targe
     else:
         for key in sample:
             sample[key] = torch.LongTensor(sample[key])
-
-    '''
-    for key in sample:
-        sample[key] = torch.LongTensor(sample[key])
-
-    '''
 
     return sample
 
