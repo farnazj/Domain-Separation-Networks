@@ -6,6 +6,7 @@ import torch.utils.data as data
 import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
+from sklearn import metrics
 
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
@@ -95,7 +96,7 @@ def train_model(train_data, dev_data, encoder_model, domain_discriminator, args)
         run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
 
         model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
-        torch.save(model, model_path)
+        torch.save(encoder_model, model_path)
 
         print "*******dev********"
         run_epoch(dev_data, False, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
@@ -133,13 +134,10 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
     else:
         encoder_model.eval()
 
-    sum_av_prec = 0.0
-    sum_ranks = 0.0
-    num_samples = 0.0
-    top_5 = 0.0
-    top_1 = 0.0
-
     nll_loss = nn.NLLLoss()
+
+    y_true = []
+    y_scores = []
 
     for batch in tqdm(data_loader):
 
@@ -209,9 +207,25 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
 
         else:
             #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
+
             for i in range(args.batch_size):
-                sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
-                updateScores(args, cs_tensor, batch['similar'][i], i, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+                for j in range(20):
+                    if j == 0:
+                        y_true.append(1)
+                    else:
+                        y_true.append(0)
+
+                    x = cs_tensor[i, j].data
+
+                    if args.cuda:
+                        x = x.cpu().numpy()
+                    else:
+                        x = x.numpy()
+
+                    y_scores.append(x)
+
+
+
 
     # Calculate epoch level scores
     if is_training:
@@ -219,11 +233,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         print('Average Train loss: {:.6f}'.format(avg_loss))
         print()
     else:
-        _map = sum_av_prec/num_samples
-        _mrr = sum_ranks/num_samples
-        _pat5 = top_5/(num_samples*5)
-        _pat1 = top_1/num_samples
-        print('MAP: {:.3f}'.format(_map))
-        print('MRR: {:.3f}'.format(_mrr))
-        print('P@1: {:.3f}'.format(_pat1))
-        print('P@5: {:.3f}'.format(_pat5))
+        np.array(y_scores)
+        np.array(y_true)
+        auc = metrics.roc_auc_score(y_true, y_scores)
+        print "AUC:", auc
