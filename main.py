@@ -7,12 +7,13 @@ import train.train_utils as train_utils
 import cPickle as pickle
 
 
-HIDDEN_SIZE = 240
+HIDDEN_SIZE = 667
 EPOCHS = 40
 BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6]
 LR = [1e-3, -1e-3]
 DROPOUT = 0.1
+LAMBDA = 1e-2
 
 TRAIN = False
 TEST = False
@@ -38,6 +39,7 @@ parser.add_argument('--snapshot', type=str, default=None, help='filename of enco
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
 parser.add_argument('--weight_decay', type=float, nargs=2, default=WEIGHT_DECAY, help='weight decays for the encoder and the domain discriminator respectively')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
+parser.add_argument('--lambda_d', type=float, default=LAMBDA, help='lambda')
 
 
 

@@ -195,7 +195,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
             encoder_loss = criterion(X_scores, y_targets)
             print "Encoder loss in batch", encoder_loss.data
 
-            task_loss = encoder_loss - domain_classifier_loss
+            task_loss = encoder_loss - args.lambda_d * domain_classifier_loss
             print "Task loss in batch", task_loss.data
             print "\n\n"
 
