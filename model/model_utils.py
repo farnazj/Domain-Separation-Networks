@@ -64,6 +64,10 @@ class LSTM(nn.Module):
         masked_seq = masks_expanded * output
         sum_hidden_states = torch.sum(masked_seq, 1)
         true_len = torch.sum(masks_reshaped, 1)
+
+        if self.args.cuda:
+            true_len = true_len.cuda()
+
         averaged_hidden_states = torch.div(sum_hidden_states, true_len)
         #averaged_hidden_states = torch.mean(masked_seq, 1)
 
@@ -129,6 +133,10 @@ class CNN(nn.Module):
         tang = F.tanh(masked_conv)
         sum_hidden_states = torch.sum(tang, 2)
         true_len = torch.sum(masks_reshaped.squeeze(1), 1).unsqueeze(1)
+
+        if self.args.cuda:
+            true_len = true_len.cuda()
+
         averaged_hidden_states = torch.div(sum_hidden_states, true_len)
 
         '''
