@@ -2,6 +2,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from stop_words import get_stop_words
 from operator import itemgetter
+from sklearn import metrics
 import numpy as np
 import gzip
 import string
@@ -243,6 +244,8 @@ def ComputeSimilarity(path, vectorizer, questions_dict, CROSS_DOMAIN):
 	Expects a list of paths (containing a single element if validation data is from the same domain, two elements if the data is from another domain)
 	'''
 
+	all_q_scores = []
+
 	questions_numbers = questions_dict.keys()
 
 	dataset = createSamplesDataset(path, CROSS_DOMAIN, questions_numbers)
@@ -273,17 +276,28 @@ def ComputeSimilarity(path, vectorizer, questions_dict, CROSS_DOMAIN):
 		for index, question in enumerate(vector_label_list):
 			cs_label_pair.append((cs[index], question[1]))
 
-		scores_list = sorted(cs_label_pair, reverse = True, key=itemgetter(0))
-		sum_av_prec, sum_ranks, num_samples, top_5, top_1 = updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+		if not CROSS_DOMAIN:
+			scores_list = sorted(cs_label_pair, reverse = True, key=itemgetter(0))
+			sum_av_prec, sum_ranks, num_samples, top_5, top_1 = updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+		else:
+			all_q_scores.extend(cs_label_pair)
 
-	_map = sum_av_prec/num_samples
-	_mrr = sum_ranks/num_samples
-	_pat5 = top_5/(num_samples*5)
-	_pat1 = top_1/num_samples
-	print('MAP: {:.3f}'.format(_map))
-	print('MRR: {:.3f}'.format(_mrr))
-	print('P@1: {:.3f}'.format(_pat1))
-	print('P@5: {:.3f}'.format(_pat5))
+
+
+	if not CROSS_DOMAIN:
+		_map = sum_av_prec/num_samples
+		_mrr = sum_ranks/num_samples
+		_pat5 = top_5/(num_samples*5)
+		_pat1 = top_1/num_samples
+		print('MAP: {:.3f}'.format(_map))
+		print('MRR: {:.3f}'.format(_mrr))
+		print('P@1: {:.3f}'.format(_pat1))
+		print('P@5: {:.3f}'.format(_pat5))
+	else:
+		true_labels = np.array([item[1] for item in all_q_scores])
+		obtained_scores = np.array([item[0].item() for item in all_q_scores])
+		print "AUC score:"
+		print metrics.roc_auc_score(true_labels, obtained_scores)
 
 
 stop_words_used = None #or get_stop_words('en')
@@ -302,23 +316,15 @@ else:
 
 BINARY_COUNT = False
 
-for stop_words_used in [None, get_stop_words('en')]:
-
-	stop_word_status = "using stop words" if stop_words_used != None else "not using stop words"
-	print stop_word_status
-
-	for NGRAM_RANGE in [(1,1), (1,2), (1,3)]:
-
-		print "ngram range: ", NGRAM_RANGE
 		
-		vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
+vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
 
-		print "*******DEV**********"
-		ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
-		print "*******TEST**********"
-		ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
+print "*******DEV**********"
+ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
+print "*******TEST**********"
+ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
 
-		print "\n"
+print "\n"
 		
 
 
