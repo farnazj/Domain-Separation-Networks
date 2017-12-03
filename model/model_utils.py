@@ -85,7 +85,10 @@ class LSTM(nn.Module):
             masks_expanded = masks_expanded.cuda()
 
         masked_seq = masks_expanded * output
-        averaged_hidden_states = torch.mean(masked_seq, 1)
+        sum_hidden_states = torch.sum(masked_seq, 1)
+        true_len = torch.sum(masks_reshaped, 1)
+        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+        #averaged_hidden_states = torch.mean(masked_seq, 1)
 
         '''
         #last stage pooling:
@@ -147,11 +150,17 @@ class CNN(nn.Module):
 
         masked_conv = masks_expanded * convolution
         tang = F.tanh(masked_conv)
+        sum_hidden_states = torch.sum(tang, 2)
+        true_len = torch.sum(masks_reshaped.squeeze(1), 1).unsqueeze(1)
+        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+
+        '''
         output = F.adaptive_avg_pool1d(tang, 1)
 
         #lose the dimension of size 1
         output = output.squeeze(2)
+        '''
         #reshape back the hidden layers
-        result = output.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
         return result
