@@ -33,7 +33,7 @@ parser.add_argument('--cuda', action='store_true', default=False, help='enable t
 parser.add_argument('--train', action='store_true', default=TRAIN, help='enable train')
 parser.add_argument('--test', action='store_true', default=TEST, help='enable test')
 # task
-parser.add_argument('--snapshot', type=str, default='model.pt', help='filename of model snapshot to load[default: None]')
+parser.add_argument('--snapshot', type=str, default=None , help='filename of model snapshot to load[default: None]')
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
 parser.add_argument('--weight_decay', type=float, default=WEIGHT_DECAY, help='weight decay')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
