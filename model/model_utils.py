@@ -34,7 +34,7 @@ class LSTM(nn.Module):
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False, dropout=self.args.dropout)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=int(self.args.hd_size/2), num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -47,13 +47,14 @@ class LSTM(nn.Module):
 
         embeddings = self.embedding_layer(reshaped_indices)
 
-        h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
-        c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
+        h0 = autograd.Variable(torch.zeros(2, new_batch_size, int(self.args.hd_size/2)).type(torch.FloatTensor))
+        c0 = autograd.Variable(torch.randn(2, new_batch_size, int(self.args.hd_size/2)).type(torch.FloatTensor))
 
         if self.args.cuda:
             h0, c0 = h0.cuda(), c0.cuda()
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
+
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
