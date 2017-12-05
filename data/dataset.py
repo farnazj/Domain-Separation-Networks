@@ -70,7 +70,7 @@ def trainSampleDic(id2source_list, id2source, id2target,
     }
 
     sample = {
-    'samples': samples,
+    'source_samples': samples,
     'question': question
     }
 
@@ -88,7 +88,7 @@ def processCandidate(sample, candidate, id2target, max_title, max_body, isTrain)
 
 
     if isTrain:
-        sampl = sample['samples']
+        sampl = sample['source_samples']
     else:
         sampl = sample
 
@@ -165,7 +165,7 @@ def createSample(q, p, negs, pos, id2source, id2target, id2source_list, id2targe
 
 
     if isTrain:
-        samples = sample['samples']
+        samples = sample['source_samples']
         question = sample['question']
 
         for key in samples:
@@ -202,15 +202,18 @@ class EvalDataset(data.Dataset):
         return sample
 
 class TrainDataset(data.Dataset):
-    def __init__(self, id2source, id2target, domain_question, max_title, max_body):
+    def __init__(self, id2source, dic_dev, id2target, domain_question, max_title, max_body):
         self.dataset = []
         self.id2source = id2source
         self.id2target = id2target
         self.id2target_list = list(id2target)  #for random pick
         self.id2source_list = list(id2source)  #for random pick
+        self.dic = dic_dev
+
+        keys = list(dic_dev.keys())
 
         with open(PATH_TRAIN) as f:
-            for line in tqdm.tqdm(f):
+            for line in f:
                 split = line.split('\t')
                 q = split[0]
                 pos = split[1].split()
@@ -221,6 +224,14 @@ class TrainDataset(data.Dataset):
                                         self.id2source_list, self.id2target_list, domain_question,
                                         max_title, max_body, True)
                     if sample != None:
+                        target_sample = None
+                        while target_sample == None:
+                            key = random.choice(keys)
+                            target_sample = createSample(key, dic_dev[key][0], dic_dev[key][1:], None, None,
+                                              id2target, None, self.id2target_list, None, max_title, max_body, False)
+
+                        sample.update({"target_samples": target_sample})
+
                         self.dataset.append(sample)
 
 

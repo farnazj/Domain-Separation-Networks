@@ -152,7 +152,7 @@ def loadDataset(args):
 
     dic_dev, dic_test, domain_question = createAndroidDics(id2target)
 
-    train_data = dataset.TrainDataset(id2source, id2target, domain_question, max_title, MAX_BODY_LEN)
+    train_data = dataset.TrainDataset(id2source, dic_dev, id2target, domain_question, max_title, MAX_BODY_LEN)
 
     dev_data =  dataset.EvalDataset(id2target, dic_dev, max_title, MAX_BODY_LEN)
 
