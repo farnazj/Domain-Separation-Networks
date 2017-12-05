@@ -57,7 +57,7 @@ class LSTM(nn.Module):
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=int(self.args.hd_size/2), num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -70,22 +70,28 @@ class LSTM(nn.Module):
 
         embeddings = self.embedding_layer(reshaped_indices)
 
-        h0 = autograd.Variable(torch.zeros(2, new_batch_size, int(self.args.hd_size/2)).type(torch.FloatTensor))
-        c0 = autograd.Variable(torch.randn(2, new_batch_size, int(self.args.hd_size/2)).type(torch.FloatTensor))
+        h0 = autograd.Variable(torch.zeros(2, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
+        c0 = autograd.Variable(torch.randn(2, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
         if self.args.cuda:
             h0, c0 = h0.cuda(), c0.cuda()
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
 
+        forward_outputs = output[:,:,:int(self.args.hd_size)]
+        backward_outputs = output[:,:,int(self.args.hd_size):]
+
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
-        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
+        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], forward_outputs.size(2))
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
 
-        masked_seq = masks_expanded * output
+        masked_seq_forward = masks_expanded * forward_outputs
+        masked_seq_backward = masks_expanded * backward_outputs
+        masked_seq = torch.cat((masked_seq_forward, masked_seq_backward), 2)
+
         sum_hidden_states = torch.sum(masked_seq, 1)
         true_len = torch.sum(masks_reshaped, 1)
 
@@ -93,6 +99,7 @@ class LSTM(nn.Module):
             true_len = true_len.cuda()
 
         averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+
         #averaged_hidden_states = torch.mean(masked_seq, 1)
 
         '''
@@ -101,7 +108,7 @@ class LSTM(nn.Module):
         result = output.gather(1, idx).squeeze()
         '''
 
-        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size * 2)
 
         return result
 
