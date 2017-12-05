@@ -7,7 +7,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 from sklearn import metrics
-
+import meter
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
     scores_list = []
@@ -136,8 +136,10 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
 
     nll_loss = nn.NLLLoss()
 
-    y_true = []
-    y_scores = []
+    #y_true = []
+    #y_scores = []
+
+    auc_met = meter.AUCMeter()
 
     for batch in tqdm(data_loader):
 
@@ -206,14 +208,13 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
             losses.append(task_loss.cpu().data[0])
 
         else:
-            #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
 
             for i in range(args.batch_size):
+
                 for j in range(20):
+                    y_true = 0
                     if j == 0:
-                        y_true.append(1)
-                    else:
-                        y_true.append(0)
+                        y_true = 1
 
                     x = cs_tensor[i, j].data
 
@@ -223,8 +224,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
                         x = x.numpy()
 
                     y_scores.append(x)
-
-
+                    auc_met.add(x, y_true)
 
 
     # Calculate epoch level scores
@@ -233,7 +233,4 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         print('Average Train loss: {:.6f}'.format(avg_loss))
         print()
     else:
-        np.array(y_scores)
-        np.array(y_true)
-        auc = metrics.roc_auc_score(y_true, y_scores)
-        print "AUC:", auc
+        print "AUC:", auc_met.value(0.05)
