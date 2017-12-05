@@ -223,7 +223,6 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
                     else:
                         x = x.numpy()
 
-                    y_scores.append(x)
                     auc_met.add(x, y_true)
 
 
