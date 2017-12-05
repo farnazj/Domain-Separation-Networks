@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     # model
     if args.train == True:
-        encoder_model, domain_discriminator = model_utils.get_models(embeddings, args)
+        encoder_model, domain_discriminator, decoder = model_utils.get_models(embeddings, args)
     elif args.snapshot is None and args.train == False:
         print "Snapshot is None, train flag is False. Must provide snapshot or train the model!"
     else:
@@ -80,6 +80,6 @@ if __name__ == '__main__':
         print "domain discriminator model:\n"
         print(domain_discriminator)
 
-        train_utils.train_model(train_data, dev_data, encoder_model, domain_discriminator, args)
+        train_utils.train_model(train_data, dev_data, encoder_model, domain_discriminator, decoder, args)
     if args.test:
         train_utils.test_model(test_data, encoder_model, args)

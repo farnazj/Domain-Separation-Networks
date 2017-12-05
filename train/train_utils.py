@@ -65,13 +65,29 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
 
-def runEncoderOnQuestions(samples, encoder_model, args):
+def runDecoder(encoder_outputs, decoder, args):
+    decoder_hidden = encoder_outputs.view(-1,encoder_outputs.data.shape[2]).unsqueeze(0)
+
+    sos_sym = torch.LongTensor([1])
+    decoder_input = autograd.Variable(sos_sym.expand(encoder_outputs.data.shape[0]*encoder_outputs.data.shape[1], 1))
+
+    for di in range(100):
+        decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
+        topv ,topi = decoder_out.data.topk(1)
+        decoder_input = autograd.Variable(topi.squeeze(2))
+
+    exit(1)
+    
+
+def runEncoderOnQuestions(samples, encoder_model, decoder, args):
 
     bodies, bodies_masks = autograd.Variable(samples['bodies']), autograd.Variable(samples['bodies_masks'])
     if args.cuda:
         bodies, bodies_masks = bodies.cuda(), bodies_masks.cuda()
 
     out_bodies = encoder_model(bodies, bodies_masks)
+
+    runDecoder(out_bodies, decoder, args)
 
     titles, titles_masks = autograd.Variable(samples['titles']), autograd.Variable(samples['titles_masks'])
     if args.cuda:
@@ -83,7 +99,7 @@ def runEncoderOnQuestions(samples, encoder_model, args):
     return hidden_rep
 
 
-def train_model(train_data, dev_data, encoder_model, domain_discriminator, args):
+def train_model(train_data, dev_data, encoder_model, domain_discriminator, decoder, args):
     if args.cuda:
         encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
 
@@ -93,7 +109,7 @@ def train_model(train_data, dev_data, encoder_model, domain_discriminator, args)
     for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
+        run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), decoder, args)
 
         model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
         torch.save(encoder_model, model_path)
@@ -112,7 +128,7 @@ def test_model(test_data, encoder_model, args):
 
 
 
-def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, args):
+def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, decoder, args):
     '''
     Train model for one pass of train data, and return loss, acccuracy
     '''
@@ -156,7 +172,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
             samples = batch
 
         #output - batch of samples, where every sample is 2d tensor of avg hidden states
-        hidden_rep = runEncoderOnQuestions(samples, encoder_model, args)
+        hidden_rep = runEncoderOnQuestions(samples, encoder_model, decoder, args)
 
         #Calculate cosine similarities here and construct X_scores
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size

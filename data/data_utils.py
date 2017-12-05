@@ -23,12 +23,13 @@ EMB_LEN = 200
 MAX_BODY_LEN = 100
 
 def getEmbeddingTensor():
-    word2idx = {}
+    word2idx = {'SOS': 1, 'EOS': 2}
     embedding_tensor = []
-    embedding_tensor.append(np.zeros(EMB_LEN))
+    for i in range(3):
+        embedding_tensor.append(np.zeros(EMB_LEN))
 
     with gzip.open(PATH_EMB) as gfile:
-        for i, line in enumerate(gfile, start=1):
+        for i, line in enumerate(gfile, start=3):
             word, emb = line.split()[0], line.split()[1:]
             vector = [float(x) for x in emb]
             embedding_tensor.append(vector)

@@ -14,15 +14,20 @@ def get_models(embeddings, args):
     print("\nBuilding models...")
 
     if args.model_name == 'cnn':
-        encoder_model = CNN(embeddings, args)
+        source_private_encoder = CNN(embeddings, args)
+        target_private_encoder = CNN(embeddings, args)
+        shared_encoder = CNN(embeddings, args)
     elif args.model_name == 'lstm':
-        encoder_model = LSTM(embeddings, args)
+        source_private_encoder = LSTM(embeddings, args)
+        target_private_encoder = LSTM(embeddings, args)
+        shared_encoder = LSTM(embeddings, args)
     else:
         raise Exception("Model name {} not supported!".format(args.model_name))
 
     domain_discriminator = FFN(args)
+    decoder = DecoderRNN(embeddings, args)
 
-    return encoder_model, domain_discriminator
+    return source_private_encoder, domain_discriminator, decoder
 
 
 class FFN(nn.Module):
@@ -38,7 +43,7 @@ class FFN(nn.Module):
 
     def forward(self, features):
         squeezed_features = features.squeeze(1)
-        
+
         hidden_out = F.relu(self.W_hidden(squeezed_features))
         out_result = self.W_out(hidden_out)
         output = self.softmax(out_result)
@@ -172,3 +177,30 @@ class CNN(nn.Module):
         result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
         return result
+
+
+class DecoderRNN(nn.Module):
+    def __init__(self,embeddings, args, n_layers=1):
+        super(DecoderRNN, self).__init__()
+
+        self.args = args
+        vocab_size, embed_dim = embeddings.shape
+        self.n_layers = n_layers
+        self.hidden_size = self.args.hd_size
+
+        self.embedding = nn.Embedding(embed_dim, vocab_size)
+        self.embedding.weight.data = torch.from_numpy( embeddings )
+
+        self.gru = nn.GRU(embed_dim, self.args.hd_size, batch_first=True)
+        self.out = nn.Linear(self.args.hd_size, vocab_size)
+        self.softmax = nn.LogSoftmax()
+
+    def forward(self, input, hidden):
+
+        output = self.embedding(input)
+
+        for i in range(self.n_layers):
+            output = F.relu(output)
+            output, hidden = self.gru(output, hidden)
+        output = self.softmax(self.out(output))
+        return output, hidden
