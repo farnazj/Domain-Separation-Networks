@@ -7,6 +7,8 @@ import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
 from sklearn import metrics
+import meter
+import itertools
 import data.data_utils as data_utils
 
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
@@ -63,7 +65,9 @@ def train_model(train_data, dev_data, encoder_model, domain_discriminator, decod
     if args.cuda:
         encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters() , lr=args.lr[0], weight_decay=args.weight_decay[0])
+    parameters = itertools.ifilter(lambda p: p.requires_grad, encoder_model.parameters())
+    encoder_optimizer = torch.optim.Adam(parameters , lr=args.lr[0], weight_decay=args.weight_decay[0])
+
     domain_optimizer = torch.optim.Adam(domain_discriminator.parameters() , lr=args.lr[1], weight_decay=args.weight_decay[1])
 
     for epoch in range(1, args.epochs+1):
@@ -112,8 +116,10 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
 
     nll_loss = nn.NLLLoss()
 
-    y_true = []
-    y_scores = []
+    #y_true = []
+    #y_scores = []
+
+    auc_met = meter.AUCMeter()
 
     for batch in tqdm(data_loader):
 
@@ -182,14 +188,13 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
             losses.append(task_loss.cpu().data[0])
 
         else:
-            #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
 
             for i in range(args.batch_size):
+
                 for j in range(20):
+                    y_true = 0
                     if j == 0:
-                        y_true.append(1)
-                    else:
-                        y_true.append(0)
+                        y_true = 1
 
                     x = cs_tensor[i, j].data
 
@@ -198,9 +203,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
                     else:
                         x = x.numpy()
 
-                    y_scores.append(x)
-
-
+                    auc_met.add(x, y_true)
 
 
     # Calculate epoch level scores
@@ -209,7 +212,4 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         print('Average Train loss: {:.6f}'.format(avg_loss))
         print()
     else:
-        np.array(y_scores)
-        np.array(y_true)
-        auc = metrics.roc_auc_score(y_true, y_scores)
-        print "AUC:", auc
+        print "AUC:", auc_met.value(0.05)

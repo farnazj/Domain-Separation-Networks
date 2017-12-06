@@ -3,8 +3,10 @@ import data.dataset as dataset
 import gzip
 import tqdm
 import cPickle as pickle
+from zipfile import ZipFile
 
-PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
+PATH_EMB = "glove300d.zip"
+EMB_FNAME = "glove.840B.300d.txt"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
 
 PATH_ADEV_NEG = "./Android/dev.neg.txt"
@@ -19,7 +21,7 @@ PATH_id2target_SAVE = './id2source.pickle'
 PATH_CONST_SAVE = './consts.txt'
 
 
-EMB_LEN = 200
+EMB_LEN = 300
 MAX_BODY_LEN = 100
 
 SOS_TOKEN = 1
@@ -29,6 +31,8 @@ def getEmbeddingTensor():
     word2idx = {'SOS': SOS_TOKEN, 'EOS': EOS_TOKEN}
     embedding_tensor = []
     embedding_tensor.append(np.zeros(EMB_LEN))
+    zipf = ZipFile(PATH_EMB)
+    global EMB_LEN
 
     for i in range(2): #for SOS and EOS
         embedding_tensor.append(np.random.rand(EMB_LEN))
@@ -36,6 +40,7 @@ def getEmbeddingTensor():
     with gzip.open(PATH_EMB) as gfile:
         for i, line in enumerate(gfile, start=3):
             word, emb = line.split()[0], line.split()[1:]
+            EMB_LEN = len(emb)
             vector = [float(x) for x in emb]
             embedding_tensor.append(vector)
             word2idx[word] = i
@@ -53,16 +58,18 @@ def get_id2source(word2idx):
             title = qtitle.split()
             body = qbody.split()
 
-            title2iarr = [word2idx[x] for x in title if x in word2idx]
+            title2iarr = [word2idx[x] if x in word2idx else 0 for x in title ]
             body2iarr = []
 
             count = 0
             for word in body:
+                if count >= MAX_BODY_LEN:
+                    break
                 if word in word2idx:
-                    if count >= MAX_BODY_LEN:
-                        break
                     body2iarr.append(word2idx[word])
-                    count += 1
+                else:
+                    body2iarr.append(0)
+                count += 1
 
             if max_title < len(title2iarr):
                 max_title = len(title2iarr)

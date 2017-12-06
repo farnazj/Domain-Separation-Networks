@@ -1,7 +1,8 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from stop_words import get_stop_words
 from operator import itemgetter
+from sklearn import metrics
+import train.meter as meter
 import numpy as np
 import gzip
 import string
@@ -28,7 +29,7 @@ def readQCorpus(filename):
 
 	data = {}
 	with gzip.open(filename) as gfile:
-		for row in gfile:			
+		for row in gfile:
 			row_arr = row.split()
 
 			row_string = string.join(row_arr[1:TEXTMAX_LENGTH + 1])
@@ -44,7 +45,7 @@ def vectorizeData(corpus_data, binary_count, vocab, stop_words_, ngram_range_, m
 	vectorizer = TfidfVectorizer(input ='content', binary=binary_count, vocabulary=vocab, stop_words= stop_words_, ngram_range=ngram_range_, max_df=max_df_, min_df= min_df_)
 
 	vectorizer.fit(corpus_data.values())
-	
+
 	return vectorizer
 
 
@@ -85,19 +86,15 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 	count = 0.0
 	last_index = -1
 	sum_prec = 0.0
-	similar_indices = []
 	flag = 0
 
 	similars_total_count = len([1 for x in scores_list if x[1] == 1])
-
-	count_similar = 0
 
 	for j in range(len(scores_list)):
 		if scores_list[j][1] == 1:
 			count += 1
 			sum_prec += count/(j+1)
 			last_index = j+1
-			count_similar += 1
 
 			if flag == 0:
 				sum_ranks += 1.0/(j+1)
@@ -110,7 +107,7 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 				top_5 += 1
 
 		else:
-			if count_similar < similars_total_count:
+			if count < similars_total_count:
 				sum_prec += count/(j+1)
 
 
@@ -243,6 +240,8 @@ def ComputeSimilarity(path, vectorizer, questions_dict, CROSS_DOMAIN):
 	Expects a list of paths (containing a single element if validation data is from the same domain, two elements if the data is from another domain)
 	'''
 
+	all_q_scores = []
+
 	questions_numbers = questions_dict.keys()
 
 	dataset = createSamplesDataset(path, CROSS_DOMAIN, questions_numbers)
@@ -252,9 +251,10 @@ def ComputeSimilarity(path, vectorizer, questions_dict, CROSS_DOMAIN):
 	num_samples = 0.0
 	top_5 = 0.0
 	top_1 = 0.0
+	auc_met = meter.AUCMeter()
 
 	for q in dataset:
-		
+
 		pos = dataset[q][0]
 		rest_q = dataset[q][1]
 
@@ -268,22 +268,34 @@ def ComputeSimilarity(path, vectorizer, questions_dict, CROSS_DOMAIN):
 		all_q_feature_vectors = [x[0] for x in vector_label_list]
 
 		cs = cosine_similarity(all_q_feature_vectors, query_vector)
-			
+
 		cs_label_pair = []
+
+
 		for index, question in enumerate(vector_label_list):
 			cs_label_pair.append((cs[index], question[1]))
 
-		scores_list = sorted(cs_label_pair, reverse = True, key=itemgetter(0))
-		sum_av_prec, sum_ranks, num_samples, top_5, top_1 = updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+			auc_met.add(cs[index], question[1])
 
-	_map = sum_av_prec/num_samples
-	_mrr = sum_ranks/num_samples
-	_pat5 = top_5/(num_samples*5)
-	_pat1 = top_1/num_samples
-	print('MAP: {:.3f}'.format(_map))
-	print('MRR: {:.3f}'.format(_mrr))
-	print('P@1: {:.3f}'.format(_pat1))
-	print('P@5: {:.3f}'.format(_pat5))
+		if not CROSS_DOMAIN:
+			scores_list = sorted(cs_label_pair, reverse = True, key=itemgetter(0))
+			sum_av_prec, sum_ranks, num_samples, top_5, top_1 = updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+		else:
+			all_q_scores.extend(cs_label_pair)
+
+
+
+	if not CROSS_DOMAIN:
+		_map = sum_av_prec/num_samples
+		_mrr = sum_ranks/num_samples
+		_pat5 = top_5/(num_samples*5)
+		_pat1 = top_1/num_samples
+		print 'MAP: {:.3f}'.format(_map)
+		print 'MRR: {:.3f}'.format(_mrr)
+		print 'P@1: {:.3f}'.format(_pat1)
+		print 'P@5: {:.3f}'.format(_pat5)
+	else:
+		print 'AUC: {:.3f}'.format(auc_met.value(0.05))
 
 
 stop_words_used = None #or get_stop_words('en')
@@ -302,23 +314,12 @@ else:
 
 BINARY_COUNT = False
 
-for stop_words_used in [None, get_stop_words('en')]:
 
-	stop_word_status = "using stop words" if stop_words_used != None else "not using stop words"
-	print stop_word_status
+vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
 
-	for NGRAM_RANGE in [(1,1), (1,2), (1,3)]:
+print "*******DEV**********"
+ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
+print "*******TEST**********"
+ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
 
-		print "ngram range: ", NGRAM_RANGE
-		
-		vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
-
-		print "*******DEV**********"
-		ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
-		print "*******TEST**********"
-		ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
-
-		print "\n"
-		
-
-
+print "\n"
