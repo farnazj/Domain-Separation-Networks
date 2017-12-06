@@ -7,7 +7,7 @@ import train.train_utils as train_utils
 import cPickle as pickle
 
 
-HIDDEN_SIZE = 667
+HIDDEN_SIZE = 240
 EPOCHS = 40
 BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6]

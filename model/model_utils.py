@@ -31,14 +31,14 @@ class FFN(nn.Module):
         super(FFN, self).__init__()
 
         self.args = args
-        output_size = int(self.args.hd_size/2) #tunable
-        self.W_hidden = nn.Linear(self.args.hd_size, output_size)
+        output_size = self.args.hd_size #tunable
+        self.W_hidden = nn.Linear(self.args.hd_size * 2, output_size)
         self.W_out = nn.Linear(output_size, 2)
         self.softmax = nn.LogSoftmax()
 
     def forward(self, features):
         squeezed_features = features.squeeze(1)
-        
+
         hidden_out = F.relu(self.W_hidden(squeezed_features))
         out_result = self.W_out(hidden_out)
         output = self.softmax(out_result)
