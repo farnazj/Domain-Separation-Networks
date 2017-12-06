@@ -55,35 +55,21 @@ class LSTM(nn.Module):
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
 
-        forward_outputs = output[:,:,:int(self.args.hd_size)]
-        backward_outputs = output[:,:,int(self.args.hd_size):]
-
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
-        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], forward_outputs.size(2))
+        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
 
-        masked_seq_forward = masks_expanded * forward_outputs
-        masked_seq_backward = masks_expanded * backward_outputs
-        #masked_seq = torch.cat((masked_seq_forward, masked_seq_backward), 2)
-
-        #sum_hidden_states = torch.sum(masked_seq, 1)
-
-        sum_hidden_states_forward = torch.sum(masked_seq_forward, 1)
-        sum_hidden_states_backward = torch.sum(masked_seq_backward, 1)
-
+        masked_seq = masks_expanded * output
+        sum_hidden_states = torch.sum(masked_seq, 1)
         true_len = torch.sum(masks_reshaped, 1)
 
         if self.args.cuda:
             true_len = true_len.cuda()
 
-
-        #averaged_hidden_states = torch.div(sum_hidden_states, true_len)
-        averaged_hidden_states_forward = torch.div(sum_hidden_states_forward, true_len)
-        averaged_hidden_states_backward = torch.div(sum_hidden_states_backward, true_len)
-        averaged_hidden_states = torch.cat((averaged_hidden_states_forward, averaged_hidden_states_backward),1)
+        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
 
         #averaged_hidden_states = torch.mean(masked_seq, 1)
 

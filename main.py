@@ -16,7 +16,7 @@ DROPOUT = 0.1
 TRAIN = False
 TEST = False
 
-MODEL = 'cnn'
+MODEL = 'lstm'
 
 parser = argparse.ArgumentParser(description='Question Retrieval')
 # learning
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         print args.embedding_dim
 
     # model
+
     if args.train == True:
         model = model_utils.get_model(embeddings, args)
     elif args.snapshot is None and args.train == False:
@@ -65,7 +66,8 @@ if __name__ == '__main__':
         print('\nLoading model from [%s]...' % args.snapshot)
         try:
             model = torch.load(args.snapshot)
-        except :
+        except Exception as e :
+            print e
             print("Sorry, This snapshot doesn't exist.")
             exit(1)
 
