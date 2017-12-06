@@ -6,13 +6,8 @@ import torch.utils.data as data
 import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
-<<<<<<< HEAD
 from sklearn import metrics
 import meter
-=======
-import itertools
-
->>>>>>> 56c028a3c81806c72aa0cffbca1a91dfa4ddf363
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
     scores_list = []
@@ -87,8 +82,6 @@ def runEncoderOnQuestions(samples, encoder_model, args):
     hidden_rep = (out_bodies + out_titles)/2
     return hidden_rep
 
-    parameters = itertools.ifilter(lambda p: p.requires_grad, model.parameters())
-    optimizer = torch.optim.Adam(parameters , lr=args.lr, weight_decay=args.weight_decay)
 
 def train_model(train_data, dev_data, encoder_model, domain_discriminator, args):
     if args.cuda:

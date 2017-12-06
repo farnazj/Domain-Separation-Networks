@@ -18,7 +18,7 @@ LAMBDA = 1e-2
 TRAIN = False
 TEST = False
 
-MODEL = 'lstm'
+MODEL = 'cnn'
 
 parser = argparse.ArgumentParser(description='Domain Adaptation in Similar Question Retrieval')
 # learning
@@ -59,7 +59,6 @@ if __name__ == '__main__':
         test_data = data_utils.loadTest(args)
 
     # model
-
     if args.train == True:
         encoder_model, domain_discriminator = model_utils.get_models(embeddings, args)
     elif args.snapshot is None and args.train == False:
@@ -68,9 +67,8 @@ if __name__ == '__main__':
         print('\nLoading model from [%s]...' % args.snapshot)
 
         try:
-            model = torch.load(args.snapshot)
-        except Exception as e :
-            print e
+            encoder_model = torch.load(args.snapshot)
+        except :
             print("Sorry, This snapshot doesn't exist.")
             exit(1)
 
