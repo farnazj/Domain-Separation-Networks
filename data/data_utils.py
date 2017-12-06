@@ -22,13 +22,19 @@ PATH_CONST_SAVE = './consts.txt'
 EMB_LEN = 200
 MAX_BODY_LEN = 100
 
+SOS_TOKEN = 1
+EOS_TOKEN = 2
+
 def getEmbeddingTensor():
-    word2idx = {}
+    word2idx = {'SOS': SOS_TOKEN, 'EOS': EOS_TOKEN}
     embedding_tensor = []
     embedding_tensor.append(np.zeros(EMB_LEN))
 
+    for i in range(2): #for SOS and EOS
+        embedding_tensor.append(np.random.rand(EMB_LEN))
+
     with gzip.open(PATH_EMB) as gfile:
-        for i, line in enumerate(gfile, start=1):
+        for i, line in enumerate(gfile, start=3):
             word, emb = line.split()[0], line.split()[1:]
             vector = [float(x) for x in emb]
             embedding_tensor.append(vector)
