@@ -9,63 +9,6 @@ import numpy as np
 from sklearn import metrics
 import data.data_utils as data_utils
 
-
-def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
-    scores_list = []
-    for j in range(20):
-        x = cs_tensor[i, j].data
-
-        if args.cuda:
-            x = x.cpu().numpy().item()
-        else:
-            x = x.numpy().item()
-
-        scores_list.append( (x, j) )
-
-    scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
-
-    count = 0.0
-    last_index = -1
-    sum_prec = 0.0
-    similar_indices = []
-    flag = 0
-
-    for k in similar:
-        if k != -1:
-            similar_indices.append(k)
-
-    count_similar = 0
-    for j in range(20):
-        if scores_list[j][1] in similar_indices:
-            count_similar += 1
-            count += 1
-            sum_prec += count/(j+1)
-            last_index = j+1
-
-            if flag == 0:
-                sum_ranks += 1.0/(j+1)
-                flag = 1
-
-            if j == 0:
-                top_1 += 1
-
-            if j < 5:
-                top_5 += 1
-        else:
-            if count_similar < len(similar_indices):
-                sum_prec += count/(j+1)
-
-
-
-    if last_index > 0:
-        sum_prec /= last_index
-
-    sum_av_prec += sum_prec
-    num_samples += 1
-
-    return sum_av_prec, sum_ranks, num_samples, top_5, top_1
-
-
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
 
     true_indices = original_inputs.view(original_inputs.data.shape[0] * original_inputs.data.shape[1], original_inputs.data.shape[2] )
@@ -79,8 +22,9 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
 
     for di in range(original_inputs.data.shape[2]): #original_inputs.data.shape[2] is the seq length
         decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
-        topv ,topi = decoder_out.data.topk(1)
-        decoder_input = autograd.Variable(topi.squeeze(2))
+        topv , topi = torch.topk(decoder_out, 1)
+        
+        #decoder_input = autograd.Variable(topi.squeeze(2))
         #decoder_loss += F.nll_loss(decoder_out.squeeze(1), true_indices[:,di])
         ''' the predicted indices are in topi.squeeze(2) which is NOT a variable
         the true indices are in true_indices
@@ -183,7 +127,7 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
 
         ###source question encoder####
         if is_training:
-            samples = batch['samples']
+            samples = batch['source_samples']
         else:
             samples = batch
 
