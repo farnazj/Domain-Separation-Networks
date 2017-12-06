@@ -5,7 +5,7 @@ import tqdm
 import cPickle as pickle
 from zipfile import ZipFile
 
-PATH_EMB = "glove300d.zip"
+PATH_EMB = "glove.840B.300d.zip"
 EMB_FNAME = "glove.840B.300d.txt"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
 
