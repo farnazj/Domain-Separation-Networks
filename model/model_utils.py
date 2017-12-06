@@ -33,6 +33,7 @@ class LSTM(nn.Module):
         self.embed_dim = embed_dim
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
+        self.embedding_layer.weight.requires_grad = False
 
         self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
@@ -96,6 +97,7 @@ class CNN(nn.Module):
         self.embed_dim = embed_dim
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
+        self.embedding_layer.weight.requires_grad = False
 
         self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3, padding = 1)
 

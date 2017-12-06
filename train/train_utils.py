@@ -6,6 +6,7 @@ import torch.utils.data as data
 import torch.nn as nn
 from tqdm import tqdm
 import numpy as np
+import itertools
 
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
@@ -67,7 +68,8 @@ def train_model(train_data, dev_data, model, args):
     if args.cuda:
         model = model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters() , lr=args.lr, weight_decay=args.weight_decay)
+    parameters = itertools.ifilter(lambda p: p.requires_grad, model.parameters())
+    optimizer = torch.optim.Adam(parameters , lr=args.lr, weight_decay=args.weight_decay)
 
     if args.train:
         model.train()
