@@ -67,15 +67,23 @@ class LSTM(nn.Module):
 
         masked_seq_forward = masks_expanded * forward_outputs
         masked_seq_backward = masks_expanded * backward_outputs
-        masked_seq = torch.cat((masked_seq_forward, masked_seq_backward), 2)
+        #masked_seq = torch.cat((masked_seq_forward, masked_seq_backward), 2)
 
-        sum_hidden_states = torch.sum(masked_seq, 1)
+        #sum_hidden_states = torch.sum(masked_seq, 1)
+
+        sum_hidden_states_forward = torch.sum(masked_seq_forward, 1)
+        sum_hidden_states_backward = torch.sum(masked_seq_backward, 1)
+
         true_len = torch.sum(masks_reshaped, 1)
 
         if self.args.cuda:
             true_len = true_len.cuda()
 
-        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+
+        #averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+        averaged_hidden_states_forward = torch.div(sum_hidden_states_forward, true_len)
+        averaged_hidden_states_backward = torch.div(sum_hidden_states_backward, true_len)
+        averaged_hidden_states = torch.cat((averaged_hidden_states_forward, averaged_hidden_states_backward),1)
 
         #averaged_hidden_states = torch.mean(masked_seq, 1)
 
