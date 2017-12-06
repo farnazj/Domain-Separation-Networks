@@ -8,6 +8,7 @@ from tqdm import tqdm
 import numpy as np
 from sklearn import metrics
 import meter
+import itertools
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
     scores_list = []
@@ -87,7 +88,9 @@ def train_model(train_data, dev_data, encoder_model, domain_discriminator, args)
     if args.cuda:
         encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters() , lr=args.lr[0], weight_decay=args.weight_decay[0])
+    parameters = itertools.ifilter(lambda p: p.requires_grad, encoder_model.parameters())
+    encoder_optimizer = torch.optim.Adam(parameters , lr=args.lr[0], weight_decay=args.weight_decay[0])
+
     domain_optimizer = torch.optim.Adam(domain_discriminator.parameters() , lr=args.lr[1], weight_decay=args.weight_decay[1])
 
     for epoch in range(1, args.epochs+1):

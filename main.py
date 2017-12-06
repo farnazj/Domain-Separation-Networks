@@ -7,7 +7,7 @@ import train.train_utils as train_utils
 import cPickle as pickle
 
 
-HIDDEN_SIZE = 667
+HIDDEN_SIZE = 240
 EPOCHS = 40
 BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6]
@@ -18,7 +18,7 @@ LAMBDA = 1e-2
 TRAIN = False
 TEST = False
 
-MODEL = 'cnn'
+MODEL = 'lstm'
 
 parser = argparse.ArgumentParser(description='Domain Adaptation in Similar Question Retrieval')
 # learning
@@ -59,6 +59,7 @@ if __name__ == '__main__':
         test_data = data_utils.loadTest(args)
 
     # model
+
     if args.train == True:
         encoder_model, domain_discriminator = model_utils.get_models(embeddings, args)
     elif args.snapshot is None and args.train == False:
@@ -67,8 +68,9 @@ if __name__ == '__main__':
         print('\nLoading model from [%s]...' % args.snapshot)
 
         try:
-            encoder_model = torch.load(args.snapshot)
-        except :
+            model = torch.load(args.snapshot)
+        except Exception as e :
+            print e
             print("Sorry, This snapshot doesn't exist.")
             exit(1)
 
