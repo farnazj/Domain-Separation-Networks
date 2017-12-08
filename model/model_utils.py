@@ -33,8 +33,9 @@ class LSTM(nn.Module):
         self.embed_dim = embed_dim
         self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
+        self.embedding_layer.weight.requires_grad = False
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=False, dropout=self.args.dropout)
+        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -47,13 +48,14 @@ class LSTM(nn.Module):
 
         embeddings = self.embedding_layer(reshaped_indices)
 
-        h0 = autograd.Variable(torch.zeros(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
-        c0 = autograd.Variable(torch.randn(1, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
+        h0 = autograd.Variable(torch.zeros(2, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
+        c0 = autograd.Variable(torch.randn(2, new_batch_size, self.args.hd_size).type(torch.FloatTensor))
 
         if self.args.cuda:
             h0, c0 = h0.cuda(), c0.cuda()
 
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
+
         #seq length hidden state mean pooling (avoiding the padding regions)
         masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
         masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
@@ -62,7 +64,15 @@ class LSTM(nn.Module):
             masks_expanded = masks_expanded.cuda()
 
         masked_seq = masks_expanded * output
-        averaged_hidden_states = torch.mean(masked_seq, 1)
+        sum_hidden_states = torch.sum(masked_seq, 1)
+        true_len = torch.sum(masks_reshaped, 1)
+
+        if self.args.cuda:
+            true_len = true_len.cuda()
+
+        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+
+        #averaged_hidden_states = torch.mean(masked_seq, 1)
 
         '''
         #last stage pooling:
@@ -70,7 +80,7 @@ class LSTM(nn.Module):
         result = output.gather(1, idx).squeeze()
         '''
 
-        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size * 2)
 
         return result
 
@@ -87,6 +97,7 @@ class CNN(nn.Module):
         self.embed_dim = embed_dim
         self.embedding_layer = nn.Embedding( vocab_size, embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
+        self.embedding_layer.weight.requires_grad = False
 
         self.conv1 = nn.Conv1d(embed_dim, self.args.hd_size, kernel_size = 3, padding = 1)
 
@@ -121,14 +132,24 @@ class CNN(nn.Module):
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
-            
+
         masked_conv = masks_expanded * convolution
         tang = F.tanh(masked_conv)
+        sum_hidden_states = torch.sum(tang, 2)
+        true_len = torch.sum(masks_reshaped.squeeze(1), 1).unsqueeze(1)
+
+        if self.args.cuda:
+            true_len = true_len.cuda()
+
+        averaged_hidden_states = torch.div(sum_hidden_states, true_len)
+
+        '''
         output = F.adaptive_avg_pool1d(tang, 1)
 
         #lose the dimension of size 1
         output = output.squeeze(2)
+        '''
         #reshape back the hidden layers
-        result = output.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
 
         return result

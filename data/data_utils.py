@@ -43,16 +43,18 @@ def getId2Data(word2idx):
             title = qtitle.split()
             body = qbody.split()
 
-            title2iarr = [word2idx[x] for x in title if x in word2idx]
+            title2iarr = [word2idx[x] if x in word2idx else 0 for x in title ]
             body2iarr = []
 
             count = 0
             for word in body:
+                if count >= MAX_BODY_LEN:
+                    break
                 if word in word2idx:
-                    if count >= MAX_BODY_LEN:
-                        break
                     body2iarr.append(word2idx[word])
-                    count += 1
+                else:
+                    body2iarr.append(0)
+                count += 1
 
             if max_title < len(title2iarr):
                 max_title = len(title2iarr)

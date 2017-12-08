@@ -16,7 +16,7 @@ DROPOUT = 0.1
 TRAIN = False
 TEST = False
 
-MODEL = 'cnn'
+MODEL = 'lstm'
 
 parser = argparse.ArgumentParser(description='Question Retrieval')
 # learning
@@ -33,7 +33,7 @@ parser.add_argument('--cuda', action='store_true', default=False, help='enable t
 parser.add_argument('--train', action='store_true', default=TRAIN, help='enable train')
 parser.add_argument('--test', action='store_true', default=TEST, help='enable test')
 # task
-parser.add_argument('--snapshot', type=str, default='model.pt', help='filename of model snapshot to load[default: None]')
+parser.add_argument('--snapshot', type=str, default=None , help='filename of model snapshot to load[default: None]')
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
 parser.add_argument('--weight_decay', type=float, default=WEIGHT_DECAY, help='weight decay')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         print args.embedding_dim
 
     # model
+
     if args.train == True:
         model = model_utils.get_model(embeddings, args)
     elif args.snapshot is None and args.train == False:
@@ -65,7 +66,8 @@ if __name__ == '__main__':
         print('\nLoading model from [%s]...' % args.snapshot)
         try:
             model = torch.load(args.snapshot)
-        except :
+        except Exception as e :
+            print e
             print("Sorry, This snapshot doesn't exist.")
             exit(1)
 
