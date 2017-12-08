@@ -1,5 +1,6 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from stop_words import get_stop_words
 from operator import itemgetter
 from sklearn import metrics
 import train.meter as meter
@@ -11,10 +12,10 @@ import random
 
 PATH_EMB = "./askubuntu/vector/vectors_pruned.200.txt.gz"
 PATH_SOURCE_QUESTION_CORPUS = "./askubuntu/text_tokenized.txt.gz"
-PATH_TARGET_QUESTION_CORPUS = "./Android/corpus.tsv.gz" #"./askubuntu/text_tokenized.txt.gz"
+PATH_TARGET_QUESTION_CORPUS =  "./Android/corpus.tsv.gz"
 
-PATHS_DEV = ["./Android/dev.pos.txt", "./Android/dev.neg.txt"] #["./askubuntu/dev.txt"]
-PATHS_TEST = ["./Android/test.pos.txt", "./Android/test.neg.txt"] #["./askubuntu/test.txt"]
+PATHS_DEV = ["./Android/dev.pos.txt", "./Android/dev.neg.txt"]  #["./askubuntu/dev.txt"] #
+PATHS_TEST = ["./Android/test.pos.txt", "./Android/test.neg.txt"] #["./askubuntu/test.txt"]  #
 
 TEXTMAX_LENGTH = 100 #int or None
 QCOUNT = 20
@@ -88,8 +89,6 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 	sum_prec = 0.0
 	flag = 0
 
-	similars_total_count = len([1 for x in scores_list if x[1] == 1])
-
 	for j in range(len(scores_list)):
 		if scores_list[j][1] == 1:
 			count += 1
@@ -106,13 +105,9 @@ def updateScores(scores_list, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 			if j < 5:
 				top_5 += 1
 
-		else:
-			if count < similars_total_count:
-				sum_prec += count/(j+1)
-
 
 	if last_index > 0:
-		sum_prec /= last_index
+		sum_prec /= count
 
 	sum_av_prec += sum_prec
 	num_samples += 1
@@ -315,11 +310,21 @@ else:
 BINARY_COUNT = False
 
 
-vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
+for stop_words_used in [None, get_stop_words('en')]:
+	stop_word_status = "using stop words" if stop_words_used != None else "not using stop words"
 
-print "*******DEV**********"
-ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
-print "*******TEST**********"
-ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
+	for NGRAM_RANGE in [(1,1), (1,2), (1,3)]:
+		print NGRAM_RANGE
 
-print "\n"
+		for BINARY_COUNT in [True, False]:
+			print BINARY_COUNT
+
+
+			vectorizer = vectorizeData(source_questions_dict, BINARY_COUNT, vocabulary, stop_words_used, NGRAM_RANGE, 1.0, 1)
+
+			print "*******DEV**********"
+			ComputeSimilarity(PATHS_DEV, vectorizer, questions_dict, CROSS_DOMAIN)
+			print "*******TEST**********"
+			ComputeSimilarity(PATHS_TEST, vectorizer, questions_dict, CROSS_DOMAIN)
+
+			print "\n"
