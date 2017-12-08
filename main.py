@@ -8,7 +8,7 @@ import cPickle as pickle
 
 
 HIDDEN_SIZE = 240
-EPOCHS = 1
+EPOCHS = 42
 BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6]
 LR = [1e-3, -1e-3]
