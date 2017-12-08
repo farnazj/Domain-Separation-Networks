@@ -31,9 +31,8 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
     if args.cuda:
         decoder_input, target = decoder_input.cuda(), target.cuda()
 
-    #TODO (to solve memory issues): make the vocabulary size smaller by cutting off the vocab that isn't used in the corpus,
     #last resort: make the decoder loop through only half of the title length
-    for di in range(original_inputs.size(2)): #original_inputs.data.shape[2] is the seq length
+    for di in range(int(original_inputs.size(2)/2)): #original_inputs.data.shape[2] is the seq length
         decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
         topv, topi = torch.topk(decoder_out, 1)
         decoder_input = topi.squeeze(2)
@@ -41,7 +40,7 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
         #decoder_loss += loss_criterion(torch.eq(topi.squeeze(2), true_indices[:,di].unsqueeze(1)).type(torch.FloatTensor), target)
         decoder_loss += loss_criterion(decoder_out.squeeze(1), true_indices[:,di])
 
-    return decoder_loss/original_inputs.size(2)
+    return decoder_loss/int(original_inputs.size(2)/2)
 
 
 def runEncoderOnQuestions(samples, encoder_model, args):

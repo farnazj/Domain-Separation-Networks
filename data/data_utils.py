@@ -3,7 +3,7 @@ import data.dataset as dataset
 import gzip
 import tqdm
 import cPickle as pickle
-#from zipfile import ZipFile
+from zipfile import ZipFile
 
 PATH_EMB = "glove.emb.zip"
 EMB_FNAME = "glove.emb"
@@ -21,31 +21,33 @@ PATH_id2target_SAVE = './id2source.pickle'
 PATH_CONST_SAVE = './consts.txt'
 
 
-EMB_LEN = 200 #300
+EMB_LEN = 300 #300
 MAX_BODY_LEN = 100
 
 SOS_TOKEN = 1
 EOS_TOKEN = 2
 
+
 def getEmbeddingTensor():
     word2idx = {'SOS': SOS_TOKEN, 'EOS': EOS_TOKEN}
     embedding_tensor = []
-
-    #zipf = ZipFile(PATH_EMB)
-    global EMB_LEN
-
     for i in range(3): #for SOS and EOS
         embedding_tensor.append(np.zeros(EMB_LEN))
 
-    #with zipf.open(EMB_FNAME) as gfile:
-    with gzip.open(PATH_EMB) as gfile:
+    zipf = ZipFile(PATH_EMB)
+
+    global EMB_LEN
+
+    with zipf.open(EMB_FNAME) as gfile:
         for i, line in enumerate(gfile, start=3):
             word, emb = line.split()[0], line.split()[1:]
+            EMB_LEN = len(emb)
             vector = [float(x) for x in emb]
             embedding_tensor.append(vector)
             word2idx[word] = i
     embedding_tensor = np.array(embedding_tensor, dtype=np.float32)
     return embedding_tensor, word2idx
+
 
 def get_id2source(word2idx):
     id2source = {}
