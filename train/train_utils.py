@@ -10,61 +10,6 @@ from sklearn import metrics
 import meter
 import itertools
 
-def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
-    scores_list = []
-    for j in range(20):
-        x = cs_tensor[i, j].data
-
-        if args.cuda:
-            x = x.cpu().numpy().item()
-        else:
-            x = x.numpy().item()
-
-        scores_list.append( (x, j) )
-
-    scores_list = sorted(scores_list, reverse = True, key=itemgetter(0))
-
-    count = 0.0
-    last_index = -1
-    sum_prec = 0.0
-    similar_indices = []
-    flag = 0
-
-    for k in similar:
-        if k != -1:
-            similar_indices.append(k)
-
-    count_similar = 0
-    for j in range(20):
-        if scores_list[j][1] in similar_indices:
-            count_similar += 1
-            count += 1
-            sum_prec += count/(j+1)
-            last_index = j+1
-
-            if flag == 0:
-                sum_ranks += 1.0/(j+1)
-                flag = 1
-
-            if j == 0:
-                top_1 += 1
-
-            if j < 5:
-                top_5 += 1
-        else:
-            if count_similar < len(similar_indices):
-                sum_prec += count/(j+1)
-
-
-
-    if last_index > 0:
-        sum_prec /= last_index
-
-    sum_av_prec += sum_prec
-    num_samples += 1
-
-    return sum_av_prec, sum_ranks, num_samples, top_5, top_1
-
 
 def runEncoderOnQuestions(samples, encoder_model, args):
 
