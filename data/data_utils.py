@@ -5,8 +5,8 @@ import tqdm
 import cPickle as pickle
 from zipfile import ZipFile
 
-PATH_EMB = "glove.840B.300d.zip"
-EMB_FNAME = "glove.840B.300d.txt"
+PATH_EMB = "glove.emb.zip"
+EMB_FNAME = "glove.emb"
 PATH_TEXT = "./askubuntu/text_tokenized.txt.gz"
 
 PATH_ADEV_NEG = "./Android/dev.neg.txt"
