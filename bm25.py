@@ -77,3 +77,6 @@ def computeBM25(path):
     print('MRR: {:.3f}'.format(_mrr))
     print('P@1: {:.3f}'.format(_pat1))
     print('P@5: {:.3f}'.format(_pat5))
+
+computeBM25(PATH_DEV)
+computeBM25(PATH_TEST)
