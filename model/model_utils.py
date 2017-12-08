@@ -27,7 +27,7 @@ def get_models(embeddings, args):
     domain_discriminator = FFN(args)
     decoder = DecoderRNN(embeddings, args)
 
-    return source_private_encoder, domain_discriminator, decoder
+    return source_private_encoder, target_private_encoder, shared_encoder, decoder, domain_discriminator
 
 
 class FFN(nn.Module):
@@ -197,6 +197,7 @@ class DecoderRNN(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)
         self.embedding.weight.data = torch.from_numpy( embeddings )
+        self.embedding.weight.requires_grad = False
 
         self.gru = nn.GRU(embed_dim, self.hidden_size, batch_first=True)
         self.out = nn.Linear(self.hidden_size, vocab_size)

@@ -14,36 +14,37 @@ import data.data_utils as data_utils
 
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
 
+    if args.cuda:
+        original_inputs = original_inputs.cuda()
+
     true_indices = original_inputs.view(original_inputs.size(0) * original_inputs.size(1), original_inputs.size(2) )
 
     decoder_hidden = encoder_outputs.view(-1,encoder_outputs.size(2)).unsqueeze(0)
 
     sos_sym = torch.LongTensor([data_utils.SOS_TOKEN])
-    decoder_input = autograd.Variable(sos_sym.expand(encoder_outputs.size(0)*encoder_outputs.size(1), 1))
+    decoder_input = autograd.Variable(sos_sym.expand(encoder_outputs.size(0) * encoder_outputs.size(1), 1))
 
+    loss_criterion = nn.NLLLoss()
     decoder_loss = 0
-    target = autograd.Variable(torch.ones(decoder_input.size(0), 1))
+    #target = autograd.Variable(torch.ones(decoder_input.size(0), 1))
 
+    if args.cuda:
+        decoder_input, target = decoder_input.cuda(), target.cuda()
+
+    #TODO (to solve memory issues): make the vocabulary size smaller by cutting off the vocab that isn't used in the corpus,
+    #last resort: make the decoder loop through only half of the title length
     for di in range(original_inputs.size(2)): #original_inputs.data.shape[2] is the seq length
         decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
-        topv , topi = torch.topk(decoder_out, 1)
+        topv, topi = torch.topk(decoder_out, 1)
         decoder_input = topi.squeeze(2)
 
-        decoder_loss += F.mse_loss(torch.eq(topi.squeeze(2), true_indices[:,di].unsqueeze(1)).type(torch.FloatTensor), target)
-        print "decoder loss"
-        print decoder_loss
-        ''' the predicted indices are in topi.squeeze(2) which is NOT a variable
-        the true indices are in true_indices
-        if we can fix the problem of keeping predicted labels in a variable, we can do mse_loss
-        '''
+        #decoder_loss += loss_criterion(torch.eq(topi.squeeze(2), true_indices[:,di].unsqueeze(1)).type(torch.FloatTensor), target)
+        decoder_loss += loss_criterion(decoder_out.squeeze(1), true_indices[:,di])
 
-    print "final loss"
-    print decoder_loss
-    return decoder_loss
+    return decoder_loss/original_inputs.size(2)
 
 
-def runEncoderOnQuestions(samples, encoder_model, decoder, args):
-
+def runEncoderOnQuestions(samples, encoder_model, args):
 
     bodies, bodies_masks = autograd.Variable(samples['bodies']), autograd.Variable(samples['bodies_masks'])
     if args.cuda:
@@ -59,33 +60,31 @@ def runEncoderOnQuestions(samples, encoder_model, decoder, args):
 
     out_titles = encoder_model(titles, titles_masks)
 
-    #TODO: figure out how to add title loss to the body loss for the decoder
-    decoder_loss_title = runDecoder(out_titles, titles, decoder, args)
-
-    hidden_rep = (out_bodies + out_titles)/2
-    return hidden_rep, decoder_loss_title
+    return out_bodies, out_titles
 
 
-def train_model(train_data, dev_data, encoder_model, domain_discriminator, decoder, args):
+def train_model(train_data, dev_data, source_encoder, target_encoder, shared_encoder,decoder, domain_classifier, args):
     if args.cuda:
-        encoder_model, domain_discriminator = encoder_model.cuda(), domain_discriminator.cuda()
+        source_encoder, target_encoder, shared_encoder, decoder, domain_classifier = source_encoder.cuda(), target_encoder.cuda(), shared_encoder.cuda(), decoder.cuda(), domain_classifier.cuda()
 
-    parameters = itertools.ifilter(lambda p: p.requires_grad, encoder_model.parameters())
-    encoder_optimizer = torch.optim.Adam(parameters , lr=args.lr[0], weight_decay=args.weight_decay[0])
+    encoder_optimizers = []
 
-    domain_optimizer = torch.optim.Adam(domain_discriminator.parameters() , lr=args.lr[1], weight_decay=args.weight_decay[1])
+    for i, model in enumerate([source_encoder, target_encoder, shared_encoder, decoder]):
+        parameters = itertools.ifilter(lambda p: p.requires_grad, model.parameters())
+        encoder_optimizers.append(torch.optim.Adam(parameters , lr=args.lr[i], weight_decay=args.weight_decay[i]))
+
+    domain_optimizer = torch.optim.Adam(domain_classifier.parameters() , lr=args.lr[4], weight_decay=args.weight_decay[4])
 
     for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        run_epoch(train_data, True, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), decoder, args)
+        run_epoch(train_data, True, source_encoder, target_encoder, shared_encoder, decoder, domain_classifier, encoder_optimizers, domain_optimizer, args)
 
         model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
         torch.save(encoder_model, model_path)
 
         print "*******dev********"
-        run_epoch(dev_data, False, (encoder_model, encoder_optimizer), (domain_discriminator, domain_optimizer), args)
-
+        run_epoch(dev_data, False, None, target_encoder, shared_encoder, None, None, encoder_optimizers, None, args)
 
 
 def test_model(test_data, encoder_model, args):
@@ -97,12 +96,10 @@ def test_model(test_data, encoder_model, args):
 
 
 
-def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer, decoder, args):
+def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder, decoder, domain_classifier, encoder_optimizers, domain_optimizer, args):
     '''
     Train model for one pass of train data, and return loss, acccuracy
     '''
-    encoder_model, encoder_optimizer = encoder_model_optimizer
-    domain_model, domain_optimizer = domain_model_optimizer
 
     data_loader = torch.utils.data.DataLoader(
         data,
@@ -114,15 +111,15 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
     losses = []
 
     if is_training:
-        encoder_model.train()
-        domain_model.train()
+        source_encoder.train()
+        target_encoder.train()
+        shared_encoder.train()
+        decoder.train()
+        domain_classifier.train()
     else:
         encoder_model.eval()
 
     nll_loss = nn.NLLLoss()
-
-    #y_true = []
-    #y_scores = []
 
     auc_met = meter.AUCMeter()
 
@@ -133,34 +130,54 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         #pdb.set_trace()
 
         if is_training:
-            encoder_optimizer.zero_grad()
-            domain_optimizer.zero_grad()
+            source_encoder.zero_grad()
+            target_encoder.zero_grad()
+            shared_encoder.zero_grad()
+            decoder.zero_grad()
+            domain_classifier.zero_grad()
 
         ###source question encoder####
         if is_training:
-            samples = batch['source_samples']
+            source_samples = batch['source_samples']
+            target_samples = batch['target_samples']
+
+            pri_enc_s_bodies, pri_enc_s_titles = runEncoderOnQuestions(source_samples, source_encoder, args)
+
+            shared_enc_s_bodies, shared_enc_s_titles = runEncoderOnQuestions(source_samples, shared_encoder, args)
+
+            decoder_s_loss = runDecoder(pri_enc_s_titles + shared_enc_s_titles , autograd.Variable(source_samples['titles']), decoder, args)
+
+            shared_enc_t_bodies, shared_enc_t_titles = runEncoderOnQuestions(target_samples, shared_encoder, args)
+
+            pri_enc_t_bodies, pri_enc_t_titles = runEncoderOnQuestions(target_samples, target_encoder, args)
+
+            decoder_t_loss = runDecoder(pri_enc_t_titles + shared_enc_t_titles, autograd.Variable(target_samples['titles']), decoder, args)
+
+            task_hidden_rep = (pri_enc_s_bodies + pri_enc_s_titles + shared_enc_s_bodies + shared_enc_s_titles)/4
         else:
             samples = batch
 
-        #output - batch of samples, where every sample is 2d tensor of avg hidden states
-        hidden_rep, decoder_loss = runEncoderOnQuestions(samples, encoder_model, decoder, args)
-        print decoder_loss
-        exit(1)
+            shared_enc_bodies, shared_enc_titles = runEncoderOnQuestions(samples, shared_encoder, args)
+
+            pri_enc_t_bodies, pri_enc_t_titles = runEncoderOnQuestions(samples, target_encoder, args)
+
+            task_hidden_rep = (shared_enc_bodies + shared_enc_titles + pri_enc_t_bodies + pri_enc_t_titles)/4
+
 
         #Calculate cosine similarities here and construct X_scores
         #expected datastructure of hidden_rep = batchsize x number_of_q x hidden_size
-        cs_tensor = autograd.Variable(torch.FloatTensor(hidden_rep.size(0), hidden_rep.size(1)-1))
+        cs_tensor = autograd.Variable(torch.FloatTensor(task_hidden_rep.size(0), task_hidden_rep.size(1)-1))
 
         if args.cuda:
             cs_tensor = cs_tensor.cuda()
 
         #calculate cosine similarity for every query vs. neg q pair
-        for j in range(1, hidden_rep.size(1)):
-            for i in range(hidden_rep.size(0)):
-                cs_tensor[i, j-1] = cosine_similarity(hidden_rep[i, 0, ], hidden_rep[i, j, ])
+        for j in range(1, task_hidden_rep.size(1)):
+            for i in range(task_hidden_rep.size(0)):
+                cs_tensor[i, j-1] = cosine_similarity(task_hidden_rep[i, 0, ], task_hidden_rep[i, j, ])
 
         X_scores = torch.stack(cs_tensor, 0)
-        y_targets = autograd.Variable(torch.zeros(hidden_rep.size(0)).type(torch.LongTensor))
+        y_targets = autograd.Variable(torch.zeros(task_hidden_rep.size(0)).type(torch.LongTensor))
 
         if args.cuda:
             y_targets = y_targets.cuda()
@@ -168,14 +185,18 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
         if is_training:
             #####domain classifier#####
             cross_d_questions = batch['question']
-            avg_hidden_rep = runEncoderOnQuestions(cross_d_questions, encoder_model, args)
+            bodies, titles = runEncoderOnQuestions(cross_d_questions, shared_encoder, args)
+            avg_hidden_rep = (bodies + titles)/2
 
-            predicted_domains = domain_model(avg_hidden_rep)
+            predicted_domains = domain_classifier(avg_hidden_rep)
 
             true_domains = autograd.Variable(cross_d_questions['domain']).squeeze(1)
 
             if args.cuda:
                 true_domains = true_domains.cuda()
+
+            decoder_loss = (decoder_s_loss + decoder_t_loss)/2
+            print "Decoder loss in batch", decoder_loss.data
 
             domain_classifier_loss = nll_loss(predicted_domains, true_domains)
             print "Domain loss in batch", domain_classifier_loss.data
@@ -184,12 +205,17 @@ def run_epoch(data, is_training, encoder_model_optimizer, domain_model_optimizer
             encoder_loss = criterion(X_scores, y_targets)
             print "Encoder loss in batch", encoder_loss.data
 
-            task_loss = encoder_loss - args.lambda_d * domain_classifier_loss
+            task_loss = encoder_loss + args.alpha_recon * decoder_loss\
+             - args.lambda_d * domain_classifier_loss
             print "Task loss in batch", task_loss.data
             print "\n\n"
 
+
             task_loss.backward()
-            encoder_optimizer.step()
+
+            for encoder_optimizer in encoder_optimizers:
+                encoder_optimizer.step()
+
             domain_optimizer.step()
 
             losses.append(task_loss.cpu().data[0])
