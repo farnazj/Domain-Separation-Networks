@@ -99,7 +99,6 @@ class LSTM(nn.Module):
             true_len = true_len.cuda()
 
         averaged_hidden_states = torch.div(sum_hidden_states, true_len)
-
         #averaged_hidden_states = torch.mean(masked_seq, 1)
 
         '''
@@ -131,8 +130,8 @@ class CNN(nn.Module):
 
     def forward(self, x_index, masks):
 
-        reshaped_indices = x_index.view(-1, x_index.data.shape[2])
-        new_batch_size = reshaped_indices.data.shape[0]
+        reshaped_indices = x_index.view(-1, x_index.size(2))
+        new_batch_size = reshaped_indices.size(0)
         embeddings = self.embedding_layer(reshaped_indices)
         #now embeddings is of the form: batchsize * sequence_length * embedding dimension
         #input to conv1d should be of the form batchsize * embedding dimension * sequence_length
@@ -188,15 +187,19 @@ class DecoderRNN(nn.Module):
         super(DecoderRNN, self).__init__()
 
         self.args = args
+
+        self.hidden_size = self.args.hd_size
         vocab_size, embed_dim = embeddings.shape
         self.n_layers = n_layers
-        self.hidden_size = self.args.hd_size
 
-        self.embedding = nn.Embedding(embed_dim, vocab_size)
+        if args.model_name == "lstm":
+            self.hidden_size= 2 * self.hidden_size
+
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
         self.embedding.weight.data = torch.from_numpy( embeddings )
 
-        self.gru = nn.GRU(embed_dim, self.args.hd_size, batch_first=True)
-        self.out = nn.Linear(self.args.hd_size, vocab_size)
+        self.gru = nn.GRU(embed_dim, self.hidden_size, batch_first=True)
+        self.out = nn.Linear(self.hidden_size, vocab_size)
         self.softmax = nn.LogSoftmax()
 
     def forward(self, input, hidden):
@@ -206,5 +209,6 @@ class DecoderRNN(nn.Module):
         for i in range(self.n_layers):
             output = F.relu(output)
             output, hidden = self.gru(output, hidden)
+
         output = self.softmax(self.out(output))
         return output, hidden
