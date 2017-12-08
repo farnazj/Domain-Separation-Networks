@@ -49,52 +49,26 @@ def updateScores(similar_indices, bm25, sum_av_prec, sum_ranks, num_samples, top
 
     return sum_av_prec, sum_ranks, num_samples, top_5, top_1
 
-with open(PATH_DEV) as f:
-    sum_av_prec = 0.0
-    sum_ranks = 0.0
-    num_samples = 0.0
-    top_5 = 0.0
-    top_1 = 0.0
+def computeBM25(path):
+    with open(path) as f:
+        sum_av_prec = 0.0
+        sum_ranks = 0.0
+        num_samples = 0.0
+        top_5 = 0.0
+        top_1 = 0.0
 
-    for line in f:
-        q, pos, allq, bm25 = line.split('\t')
-        pos = pos.split()
-        allq = allq.split()
-        bm25 = bm25.split()
-        bm25 = [float(x) for x in bm25]
-        similar_idx = getSimilarIdx(allq, pos)
-        sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
-        updateScores(similar_idx, bm25, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+        for line in f:
+            q, pos, allq, bm25 = line.split('\t')
+            pos = pos.split()
+            allq = allq.split()
+            bm25 = bm25.split()
+            bm25 = [float(x) for x in bm25]
+            similar_idx = getSimilarIdx(allq, pos)
+            sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
+            updateScores(similar_idx, bm25, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+
 
     print "DEV BM25 MEASURES"
-    _map = sum_av_prec/num_samples
-    _mrr = sum_ranks/num_samples
-    _pat5 = top_5/(num_samples*5)
-    _pat1 = top_1/num_samples
-    print('MAP: {:.3f}'.format(_map))
-    print('MRR: {:.3f}'.format(_mrr))
-    print('P@1: {:.3f}'.format(_pat1))
-    print('P@5: {:.3f}'.format(_pat5))
-
-with open(PATH_TEST) as f:
-    sum_av_prec = 0.0
-    sum_ranks = 0.0
-    num_samples = 0.0
-    top_5 = 0.0
-    top_1 = 0.0
-
-    for line in f:
-        q, pos, allq, bm25 = line.split('\t')
-        pos = pos.split()
-        allq = allq.split()
-        bm25 = bm25.split()
-        bm25 = [float(x) for x in bm25]
-        similar_idx = getSimilarIdx(allq, pos)
-        sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
-        updateScores(similar_idx, bm25, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
-
-    print ""
-    print "TEST BM25 MEASURES"
     _map = sum_av_prec/num_samples
     _mrr = sum_ranks/num_samples
     _pat5 = top_5/(num_samples*5)
