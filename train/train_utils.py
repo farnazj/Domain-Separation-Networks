@@ -9,14 +9,17 @@ import numpy as np
 
 
 def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_samples, top_5, top_1):
+
     scores_list = []
+
     for j in range(20):
+
         x = cs_tensor[i, j].data
 
         if args.cuda:
-            x = x.cpu().numpy().item()
-        else:
-            x = x.numpy().item()
+            x = x.cpu()
+
+        x = x.numpy().item()
 
         scores_list.append( (x, j) )
 
@@ -33,6 +36,10 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
             similar_indices.append(k)
 
     count_similar = 0
+
+    print scores_list
+    print similar_indices
+
     for j in range(20):
         if scores_list[j][1] in similar_indices:
             count_similar += 1
@@ -49,14 +56,14 @@ def updateScores(args, cs_tensor, similar, i, sum_av_prec, sum_ranks, num_sample
 
             if j < 5:
                 top_5 += 1
-        else:
-            if count_similar < len(similar_indices):
-                sum_prec += count/(j+1)
+        #else:
+        #    if count_similar < len(similar_indices):
+        #        sum_prec += count/(j+1)
 
 
 
     if last_index > 0:
-        sum_prec /= last_index
+        sum_prec /= count
 
     sum_av_prec += sum_prec
     num_samples += 1
@@ -175,9 +182,11 @@ def run_epoch(data, is_training, model, optimizer, args):
 
         else:
             #Average Precision = (sum_{i in j} P@i / j)  where j is the last index
+
             for i in range(args.batch_size):
                 sum_av_prec, sum_ranks, num_samples, top_5, top_1 = \
-                updateScores(args, cs_tensor, batch['similar'][i], i, sum_av_prec, sum_ranks, num_samples, top_5, top_1)
+                updateScores(args, cs_tensor, batch['similar'][i], i,
+                sum_av_prec, sum_ranks, num_samples, top_5, top_1)
 
     # Calculate epoch level scores
     if is_training:
