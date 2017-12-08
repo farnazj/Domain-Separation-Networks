@@ -42,9 +42,9 @@ class LSTM(nn.Module):
     def forward(self, x_index, masks):
 
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
-        reshaped_indices = x_index.view(-1, x_index.data.shape[2])
+        reshaped_indices = x_index.view(-1, x_index.size(2))
 
-        new_batch_size = reshaped_indices.data.shape[0]
+        new_batch_size = reshaped_indices.size(0)
 
         embeddings = self.embedding_layer(reshaped_indices)
 
@@ -57,8 +57,8 @@ class LSTM(nn.Module):
         output, (h_n, c_n) = self.lstm(embeddings, (h0, c0))
 
         #seq length hidden state mean pooling (avoiding the padding regions)
-        masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(2).type(torch.FloatTensor)
-        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],masks_reshaped.data.shape[1], output.size(2))
+        masks_reshaped = masks.view(-1, masks.size(2)).unsqueeze(2).type(torch.FloatTensor)
+        masks_expanded = masks_reshaped.expand(masks_reshaped.size(0),masks_reshaped.size(1), output.size(2))
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
@@ -80,7 +80,7 @@ class LSTM(nn.Module):
         result = output.gather(1, idx).squeeze()
         '''
 
-        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size * 2)
+        result = averaged_hidden_states.view(x_index.size(0), x_index.size(1),self.args.hd_size * 2)
 
         return result
 
@@ -103,8 +103,8 @@ class CNN(nn.Module):
 
     def forward(self, x_index, masks):
 
-        reshaped_indices = x_index.view(-1, x_index.data.shape[2])
-        new_batch_size = reshaped_indices.data.shape[0]
+        reshaped_indices = x_index.view(-1, x_index.size(2))
+        new_batch_size = reshaped_indices.size(0)
         embeddings = self.embedding_layer(reshaped_indices)
         #now embeddings is of the form: batchsize * sequence_length * embedding dimension
         #input to conv1d should be of the form batchsize * embedding dimension * sequence_length
@@ -127,8 +127,8 @@ class CNN(nn.Module):
         #mean pooling the convolution layer (avoiding the padding regions)
         convolution = self.conv1(embeddings)
 
-        masks_reshaped = masks.view(-1, masks.data.shape[2]).unsqueeze(1).type(torch.FloatTensor)
-        masks_expanded = masks_reshaped.expand(masks_reshaped.data.shape[0],convolution.size(1), masks_reshaped.data.shape[2] )
+        masks_reshaped = masks.view(-1, masks.size(2)).unsqueeze(1).type(torch.FloatTensor)
+        masks_expanded = masks_reshaped.expand(masks_reshaped.size(0), convolution.size(1), masks_reshaped.size(2) )
 
         if self.args.cuda:
             masks_expanded = masks_expanded.cuda()
@@ -150,6 +150,6 @@ class CNN(nn.Module):
         output = output.squeeze(2)
         '''
         #reshape back the hidden layers
-        result = averaged_hidden_states.view(x_index.data.shape[0], x_index.data.shape[1],self.args.hd_size)
+        result = averaged_hidden_states.view(x_index.size(0), x_index.size(1),self.args.hd_size)
 
         return result
