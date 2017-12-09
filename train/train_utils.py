@@ -11,6 +11,9 @@ import meter
 import itertools
 import data.data_utils as data_utils
 
+beta = 0.001
+gamma = 0.001
+alpha = 0.001
 
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
 
@@ -122,37 +125,67 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
 
     auc_met = meter.AUCMeter()
 
+    cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
+    criterion = nn.MultiMarginLoss(margin=0.4)
+    s_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
+    t_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
+
     for batch in tqdm(data_loader):
 
-        cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
-        criterion = nn.MultiMarginLoss(margin=0.4)
-        #pdb.set_trace()
-
+        difference_loss = 0
+        decoder_loss = 0
         if is_training:
+
             source_encoder.zero_grad()
             target_encoder.zero_grad()
             shared_encoder.zero_grad()
             decoder.zero_grad()
             domain_classifier.zero_grad()
 
-        ###source question encoder####
-        if is_training:
             source_samples = batch['source_samples']
             target_samples = batch['target_samples']
 
             pri_enc_s_bodies, pri_enc_s_titles = runEncoderOnQuestions(source_samples, source_encoder, args)
 
             shared_enc_s_bodies, shared_enc_s_titles = runEncoderOnQuestions(source_samples, shared_encoder, args)
+            #calculate source encoder loss
 
+            pri_av_source = (pri_enc_s_bodies + pri_enc_s_titles)/2
+            shared_av_source = (shared_enc_s_bodies + shared_enc_s_titles)/2
+            y = torch.LongTensor([-1]*args.batch_size*21)
+            y = autograd.Variable(y)
+            #print pri_av_source.view(-1, pri_av_source.size(2)).size()
+            #print shared_av_source.view(-1, shared_av_source.size(2)).size()
+
+            #----->
+            s_enc_cos_loss = s_cos_criterion(pri_av_source.view(-1, pri_av_source.size(2)), shared_av_source.view(-1, shared_av_source.size(2)), y)
+
+            #print s_enc_cos_loss
+
+            #----->
             decoder_s_loss = runDecoder(pri_enc_s_titles + shared_enc_s_titles , autograd.Variable(source_samples['titles']), decoder, args)
 
             shared_enc_t_bodies, shared_enc_t_titles = runEncoderOnQuestions(target_samples, shared_encoder, args)
 
             pri_enc_t_bodies, pri_enc_t_titles = runEncoderOnQuestions(target_samples, target_encoder, args)
 
+            shared_av_target = (shared_enc_t_bodies + shared_enc_t_titles)/2
+            pri_av_target = (pri_enc_t_bodies + shared_enc_s_titles)/2
+            y2 = torch.LongTensor([-1]*args.batch_size*21)
+            y2 = autograd.Variable(y2)
+
+            #----->
+            t_enc_cos_loss = t_cos_criterion(pri_av_target.view(-1, pri_av_source.size(2)), shared_av_target.view(-1, shared_av_source.size(2)), y)
+
+            #------>
+
             decoder_t_loss = runDecoder(pri_enc_t_titles + shared_enc_t_titles, autograd.Variable(target_samples['titles']), decoder, args)
 
             task_hidden_rep = (pri_enc_s_bodies + pri_enc_s_titles + shared_enc_s_bodies + shared_enc_s_titles)/4
+
+            decoder_loss = (decoder_t_loss + decoder_s_loss)/2
+            difference_loss = (s_enc_cos_loss + t_enc_cos_loss)/2
+
         else:
             samples = batch
 
@@ -194,7 +227,6 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             if args.cuda:
                 true_domains = true_domains.cuda()
 
-            decoder_loss = (decoder_s_loss + decoder_t_loss)/2
             print "Decoder loss in batch", decoder_loss.data
 
             domain_classifier_loss = nll_loss(predicted_domains, true_domains)
@@ -205,8 +237,11 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             print "Encoder loss in batch", encoder_loss.data
 
             task_loss = encoder_loss + args.alpha_recon * decoder_loss\
-             - args.lambda_d * domain_classifier_loss
+             - args.lambda_d * domain_classifier_loss + args.beta_diff * difference_loss
+
             print "Task loss in batch", task_loss.data
+
+            exit(1)
             print "\n\n"
 
 
