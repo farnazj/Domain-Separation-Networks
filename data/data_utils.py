@@ -29,14 +29,13 @@ EOS_TOKEN = 2
 
 
 def getEmbeddingTensor():
+    global EMB_LEN
     word2idx = {'SOS': SOS_TOKEN, 'EOS': EOS_TOKEN}
     embedding_tensor = []
     for i in range(3): #for SOS and EOS
         embedding_tensor.append(np.zeros(EMB_LEN))
 
     zipf = ZipFile(PATH_EMB)
-
-    global EMB_LEN
 
     with zipf.open(EMB_FNAME) as gfile:
         for i, line in enumerate(gfile, start=3):
@@ -68,7 +67,7 @@ def get_id2source(word2idx):
                 if count >= MAX_BODY_LEN:
                     break
                 if word.lower() in word2idx:
-                    body2iarr.append(word2idx[word])
+                    body2iarr.append(word2idx[word.lower()])
                 else:
                     body2iarr.append(0)
                 count += 1
@@ -101,7 +100,7 @@ def get_id2target(word2idx):
                 if word.lower() in word2idx:
                     if count >= MAX_BODY_LEN:
                         break
-                    body2iarr.append(word2idx[word])
+                    body2iarr.append(word2idx[word.lower()])
                     count += 1
 
             if max_title < len(title2iarr):
