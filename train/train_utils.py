@@ -11,9 +11,6 @@ import meter
 import itertools
 import data.data_utils as data_utils
 
-beta = 0.001
-gamma = 0.001
-alpha = 0.001
 
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
 
@@ -35,7 +32,7 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
         decoder_input, target = decoder_input.cuda(), target.cuda()
 
     #last resort: make the decoder loop through only half of the title length
-    for di in range(int(original_inputs.size(2)/2)): #original_inputs.data.shape[2] is the seq length
+    for di in range(int(original_inputs.size(2)/4)): #original_inputs.data.shape[2] is the seq length
         decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
         topv, topi = torch.topk(decoder_out, 1)
         decoder_input = topi.squeeze(2)
@@ -65,7 +62,7 @@ def runEncoderOnQuestions(samples, encoder_model, args):
     return out_bodies, out_titles
 
 
-def train_model(train_data, dev_data, source_encoder, target_encoder, shared_encoder,decoder, domain_classifier, args):
+def train_model(train_data, dev_data, source_encoder, target_encoder, shared_encoder, decoder, domain_classifier, args):
     if args.cuda:
         source_encoder, target_encoder, shared_encoder, decoder, domain_classifier = source_encoder.cuda(), target_encoder.cuda(), shared_encoder.cuda(), decoder.cuda(), domain_classifier.cuda()
 
@@ -80,21 +77,30 @@ def train_model(train_data, dev_data, source_encoder, target_encoder, shared_enc
     for epoch in range(1, args.epochs+1):
         print("-------------\nEpoch {}:\n".format(epoch))
 
-        run_epoch(train_data, True, source_encoder, target_encoder, shared_encoder, decoder, domain_classifier, encoder_optimizers, domain_optimizer, args)
+        run_epoch(train_data, True, source_encoder, target_encoder,
+                                                    shared_encoder, decoder, domain_classifier,
+                                                    encoder_optimizers, domain_optimizer, args)
 
-        model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
-        torch.save(encoder_model, model_path)
+        #model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
+        #torch.save(encoder_model, model_path)
+        #save private target encoder and shared targer encoder
+
+        torch.save(target_encoder, "target_encoder.pt")
+        torch.save(shared_encoder, "shared_encoder.pt")
+
 
         print "*******dev********"
-        run_epoch(dev_data, False, None, target_encoder, shared_encoder, None, None, encoder_optimizers, None, args)
+        #run_epoch(dev_data, False, None, target_encoder, shared_encoder, None, None, encoder_optimizers, None, args)
+        run_epoch(dev_data, False, None, target_encoder, shared_encoder, None, None, None, None, args)
 
 
-def test_model(test_data, encoder_model, args):
+def test_model(test_data, target_encoder, shared_encoder, args):
     if args.cuda:
-        encoder_model = encoder_model.cuda()
+        target_encoder = target_encoder.cuda()
+        shared_encoder = shared_encoder.cuda()
 
     print "*******test********"
-    run_epoch(test_data, False, (encoder_model, None) , (None, None), args)
+    run_epoch(test_data, False, None, target_encoder, shared_encoder, None, None, None, None, args)
 
 
 
@@ -118,22 +124,23 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
         shared_encoder.train()
         decoder.train()
         domain_classifier.train()
+        nll_loss = nn.NLLLoss()
+        criterion = nn.MultiMarginLoss(margin=0.4)
+        s_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
+        t_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
+
     else:
-        encoder_model.eval()
-
-    nll_loss = nn.NLLLoss()
-
-    auc_met = meter.AUCMeter()
+        shared_encoder.eval()
+        target_encoder.eval()
+        auc_met = meter.AUCMeter()
 
     cosine_similarity = nn.CosineSimilarity(dim=0, eps=1e-6)
-    criterion = nn.MultiMarginLoss(margin=0.4)
-    s_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
-    t_cos_criterion = nn.CosineEmbeddingLoss(margin=0, size_average=True)
 
     for batch in tqdm(data_loader):
 
         difference_loss = 0
         decoder_loss = 0
+
         if is_training:
 
             source_encoder.zero_grad()
@@ -160,9 +167,6 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             #----->
             s_enc_cos_loss = s_cos_criterion(pri_av_source.view(-1, pri_av_source.size(2)), shared_av_source.view(-1, shared_av_source.size(2)), y)
 
-            #print s_enc_cos_loss
-
-            #----->
             decoder_s_loss = runDecoder(pri_enc_s_titles + shared_enc_s_titles , autograd.Variable(source_samples['titles']), decoder, args)
 
             shared_enc_t_bodies, shared_enc_t_titles = runEncoderOnQuestions(target_samples, shared_encoder, args)
@@ -174,10 +178,7 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             y2 = torch.LongTensor([-1]*args.batch_size*21)
             y2 = autograd.Variable(y2)
 
-            #----->
             t_enc_cos_loss = t_cos_criterion(pri_av_target.view(-1, pri_av_source.size(2)), shared_av_target.view(-1, shared_av_source.size(2)), y)
-
-            #------>
 
             decoder_t_loss = runDecoder(pri_enc_t_titles + shared_enc_t_titles, autograd.Variable(target_samples['titles']), decoder, args)
 
@@ -208,8 +209,6 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             for i in range(task_hidden_rep.size(0)):
                 cs_tensor[i, j-1] = cosine_similarity(task_hidden_rep[i, 0, ], task_hidden_rep[i, j, ])
 
-        X_scores = torch.stack(cs_tensor, 0)
-        y_targets = autograd.Variable(torch.zeros(task_hidden_rep.size(0)).type(torch.LongTensor))
 
         if args.cuda:
             y_targets = y_targets.cuda()
@@ -233,6 +232,8 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             print "Domain loss in batch", domain_classifier_loss.data
 
             #calculate loss
+            X_scores = torch.stack(cs_tensor, 0)
+            y_targets = autograd.Variable(torch.zeros(task_hidden_rep.size(0)).type(torch.LongTensor))
             encoder_loss = criterion(X_scores, y_targets)
             print "Encoder loss in batch", encoder_loss.data
 
@@ -241,7 +242,6 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
 
             print "Task loss in batch", task_loss.data
 
-            exit(1)
             print "\n\n"
 
 

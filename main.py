@@ -37,7 +37,8 @@ parser.add_argument('--cuda', action='store_true', default=False, help='enable t
 parser.add_argument('--train', action='store_true', default=TRAIN, help='enable train')
 parser.add_argument('--test', action='store_true', default=TEST, help='enable test')
 # task
-parser.add_argument('--snapshot', type=str, default=None, help='filename of encoder model snapshot to load[default: None]')
+parser.add_argument('--target_encoder', type=str, default="target_encoder.pt", help='filename of target encoder model snapshot to load[default: None]')
+parser.add_argument('--shared_encoder', type=str, default="shared_encoder.pt", help='filename of shared encoder model snapshot to load[default: None]')
 parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
 parser.add_argument('--weight_decay', type=float, nargs=5, default=WEIGHT_DECAY, help='weight decays for the encoder and the domain discriminator respectively')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
@@ -66,25 +67,25 @@ if __name__ == '__main__':
 
     if args.train == True:
         source_private_encoder, target_private_encoder, shared_encoder, decoder, domain_discriminator = model_utils.get_models(embeddings, args)
-    elif args.snapshot is None and args.train == False:
-        print "Snapshot is None, train flag is False. Must provide snapshot or train the model!"
     else:
-        print('\nLoading model from [%s]...' % args.snapshot)
+        print('\nLoading model from [%s]...' % args.target_encoder)
+        print('\nLoading model from [%s]...' % args.shared_encoder)
 
         try:
-            model = torch.load(args.snapshot)
+            target_encoder = torch.load(args.target_encoder)
+            shared_encoder = torch.load(args.shared_encoder)
         except Exception as e :
             print e
             print("Sorry, This snapshot doesn't exist.")
             exit(1)
 
-    print "encoder model:\n"
-    print(shared_encoder)
-
     if args.train:
-        print "domain discriminator model:\n"
-        print(domain_discriminator)
+        #print "domain discriminator model:\n"
+        #print domain_discriminator
 
+        print "Training model..."
         train_utils.train_model(train_data, dev_data, source_private_encoder, target_private_encoder, shared_encoder, decoder, domain_discriminator , args)
+
     if args.test:
-        train_utils.test_model(test_data, encoder_model, args)
+        print "Testing model..."
+        train_utils.test_model(test_data, target_encoder, shared_encoder, args)
