@@ -10,6 +10,7 @@ from sklearn import metrics
 import meter
 import itertools
 import data.data_utils as data_utils
+import math
 
 
 def runDecoder(encoder_outputs, original_inputs, decoder, args):
@@ -32,7 +33,8 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
         decoder_input, target = decoder_input.cuda(), target.cuda()
 
     #last resort: make the decoder loop through only half of the title length
-    for di in range(int(original_inputs.size(2)/4)): #original_inputs.data.shape[2] is the seq length
+    decoder_stages = int(original_inputs.size(2)/4)
+    for di in range(decoder_stages): #original_inputs.data.shape[2] is the seq length
         decoder_out, decoder_hidden = decoder(decoder_input, decoder_hidden)
         topv, topi = torch.topk(decoder_out, 1)
         decoder_input = topi.squeeze(2)
@@ -40,7 +42,7 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
         #decoder_loss += loss_criterion(torch.eq(topi.squeeze(2), true_indices[:,di].unsqueeze(1)).type(torch.FloatTensor), target)
         decoder_loss += loss_criterion(decoder_out.squeeze(1), true_indices[:,di])
 
-    return decoder_loss/int(original_inputs.size(2)/2)
+    return decoder_loss/decoder_stages
 
 
 def runEncoderOnQuestions(samples, encoder_model, args):
@@ -81,12 +83,12 @@ def train_model(train_data, dev_data, source_encoder, target_encoder, shared_enc
                                                     shared_encoder, decoder, domain_classifier,
                                                     encoder_optimizers, domain_optimizer, args)
 
-        #model_path = args.save_path[:args.save_path.rfind(".")] + "_" + str(epoch) + args.save_path[args.save_path.rfind("."):]
-        #torch.save(encoder_model, model_path)
+        model_path_target = args.save_path + "target_encoder_" + str(epoch) + ".pt"
+        model_path_shared = args.save_path + "shared_encoder_" + str(epoch) + ".pt"
         #save private target encoder and shared targer encoder
 
-        torch.save(target_encoder, "target_encoder.pt")
-        torch.save(shared_encoder, "shared_encoder.pt")
+        torch.save(target_encoder, model_path_target)
+        torch.save(shared_encoder, model_path_shared)
 
 
         print "*******dev********"
@@ -159,6 +161,7 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
 
             pri_av_source = (pri_enc_s_bodies + pri_enc_s_titles)/2
             shared_av_source = (shared_enc_s_bodies + shared_enc_s_titles)/2
+
             y = torch.LongTensor([-1]*args.batch_size*21)
             y = autograd.Variable(y)
             #print pri_av_source.view(-1, pri_av_source.size(2)).size()
@@ -236,6 +239,12 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             y_targets = autograd.Variable(torch.zeros(task_hidden_rep.size(0)).type(torch.LongTensor))
             encoder_loss = criterion(X_scores, y_targets)
             print "Encoder loss in batch", encoder_loss.data
+
+            print "Difference loss (private and shared rep) in batch", difference_loss.data
+
+            #new_lambda = args.lambda_d * 10**(int(math.log10(encoder_loss.cpu().data.numpy().item())) - \
+            #int(math.log10(domain_classifier_loss.cpu().data.numpy().item())))
+            #print "new lambda is ", new_lambda
 
             task_loss = encoder_loss + args.alpha_recon * decoder_loss\
              - args.lambda_d * domain_classifier_loss + args.beta_diff * difference_loss
