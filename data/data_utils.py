@@ -67,7 +67,7 @@ def get_id2source(word2idx):
             for word in body:
                 if count >= MAX_BODY_LEN:
                     break
-                if word in word2idx:
+                if word.lower() in word2idx:
                     body2iarr.append(word2idx[word])
                 else:
                     body2iarr.append(0)
@@ -98,7 +98,7 @@ def get_id2target(word2idx):
 
             count = 0
             for word in body:
-                if word in word2idx:
+                if word.lower() in word2idx:
                     if count >= MAX_BODY_LEN:
                         break
                     body2iarr.append(word2idx[word])
