@@ -13,9 +13,9 @@ BATCH_SIZE = 16
 WEIGHT_DECAY = [1e-6, 1e-6, 1e-6, 1e-6, 1e-6]
 LR = [1e-3, 1e-3, 1e-3 ,1e-3, -1e-3]
 DROPOUT = 0.1
-LAMBDA = 1e-2
-ALPHA = 1e-5
-BETA = 1e-4
+LAMBDA = 1e-6
+ALPHA = 1e-6
+BETA = 1e-6
 
 TRAIN = False
 TEST = False
@@ -39,7 +39,7 @@ parser.add_argument('--test', action='store_true', default=TEST, help='enable te
 # task
 parser.add_argument('--target_encoder', type=str, default="target_encoder.pt", help='filename of target encoder model snapshot to load[default: None]')
 parser.add_argument('--shared_encoder', type=str, default="shared_encoder.pt", help='filename of shared encoder model snapshot to load[default: None]')
-parser.add_argument('--save_path', type=str, default='model.pt', help='Path where to dump model')
+parser.add_argument('--save_path', type=str, default='./', help='Path where to dump model')
 parser.add_argument('--weight_decay', type=float, nargs=5, default=WEIGHT_DECAY, help='weight decays for the encoder and the domain discriminator respectively')
 parser.add_argument('--dropout', type=float, default=DROPOUT, help='droput rate')
 parser.add_argument('--lambda_d', type=float, default=LAMBDA, help='lambda')

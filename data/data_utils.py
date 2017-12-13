@@ -30,9 +30,9 @@ EOS_TOKEN = 2
 
 def getEmbeddingTensor():
     global EMB_LEN
-    word2idx = {'SOS': SOS_TOKEN, 'EOS': EOS_TOKEN}
+    word2idx = {'SOS': SOS_TOKEN}
     embedding_tensor = []
-    for i in range(3): #for SOS and EOS
+    for i in range(2): #for SOS and EOS
         embedding_tensor.append(np.zeros(EMB_LEN))
 
     zipf = ZipFile(PATH_EMB)
