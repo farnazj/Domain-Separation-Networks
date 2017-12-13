@@ -30,7 +30,7 @@ def runDecoder(encoder_outputs, original_inputs, decoder, args):
     #target = autograd.Variable(torch.ones(decoder_input.size(0), 1))
 
     if args.cuda:
-        decoder_input, target = decoder_input.cuda(), target.cuda()
+        decoder_input = decoder_input.cuda()
 
     #last resort: make the decoder loop through only half of the title length
     decoder_stages = int(original_inputs.size(2)/4)
