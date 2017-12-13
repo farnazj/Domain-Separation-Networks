@@ -164,6 +164,8 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
 
             y = torch.LongTensor([-1]*args.batch_size*21)
             y = autograd.Variable(y)
+            if args.cuda:
+                y = y.cuda()
             #print pri_av_source.view(-1, pri_av_source.size(2)).size()
             #print shared_av_source.view(-1, shared_av_source.size(2)).size()
 
@@ -180,6 +182,8 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             pri_av_target = (pri_enc_t_bodies + shared_enc_s_titles)/2
             y2 = torch.LongTensor([-1]*args.batch_size*21)
             y2 = autograd.Variable(y2)
+            if args.cuda:
+                y2 = y2.cuda()
 
             t_enc_cos_loss = t_cos_criterion(pri_av_target.view(-1, pri_av_source.size(2)), shared_av_target.view(-1, shared_av_source.size(2)), y)
 
