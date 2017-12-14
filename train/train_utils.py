@@ -217,9 +217,6 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
                 cs_tensor[i, j-1] = cosine_similarity(task_hidden_rep[i, 0, ], task_hidden_rep[i, j, ])
 
 
-        if args.cuda:
-            y_targets = y_targets.cuda()
-
         if is_training:
             #####domain classifier#####
             cross_d_questions = batch['question']
@@ -241,6 +238,10 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
             #calculate loss
             X_scores = torch.stack(cs_tensor, 0)
             y_targets = autograd.Variable(torch.zeros(task_hidden_rep.size(0)).type(torch.LongTensor))
+
+            if args.cuda:
+                y_targets = y_targets.cuda()
+
             encoder_loss = criterion(X_scores, y_targets)
             print "Encoder loss in batch", encoder_loss.data
 
