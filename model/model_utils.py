@@ -37,22 +37,25 @@ class FFN(nn.Module):
 
         self.args = args
         self.input_size = self.args.hd_size
-        self.output_size = int(self.args.hd_size/2) #tunable
+        self.output_size = 75 #int(self.args.hd_size/2) #tunable
         if args.model_name == "lstm":
             self.input_size = self.input_size * 2
             self.output_size = self.output_size * 2
 
-        self.W_hidden = nn.Linear(self.input_size, self.output_size)
+        self.first_layer = nn.Linear(self.input_size, 300)
+        self.W_hidden = nn.Linear(300, self.output_size)
         self.W_out = nn.Linear(self.output_size, 2)
         self.softmax = nn.LogSoftmax()
 
     def forward(self, features):
         squeezed_features = features.squeeze(1)
 
-        hidden_out = F.relu(self.W_hidden(squeezed_features))
+        first_output = self.first_layer(squeezed_features)
+        hidden_out = F.relu(self.W_hidden(first_output))
         out_result = self.W_out(hidden_out)
-        output = self.softmax(out_result)
-        return output
+        #output = self.softmax(out_result)
+        return out_result
+
 
 
 class LSTM(nn.Module):
@@ -61,14 +64,14 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
 
         self.args = args
-        vocab_size, embed_dim = embeddings.shape
+        self.vocab_size, embed_dim = embeddings.shape
 
         self.embed_dim = embed_dim
-        self.embedding_layer = nn.Embedding(vocab_size, embed_dim, padding_idx = 0)
+        self.embedding_layer = nn.Embedding(self.vocab_size, self.embed_dim, padding_idx = 0)
         self.embedding_layer.weight.data = torch.from_numpy( embeddings )
         self.embedding_layer.weight.requires_grad = False
 
-        self.lstm = nn.LSTM(input_size=embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
+        self.lstm = nn.LSTM(input_size=self.embed_dim, hidden_size=self.args.hd_size, num_layers=1, batch_first=True, bidirectional=True, dropout=self.args.dropout)
         #self.W_o = nn.Linear(self.args.hd_size,1)
 
 
@@ -76,6 +79,11 @@ class LSTM(nn.Module):
 
         #x_index.data.shape[0] -> batch size, x_index.data.shape[1] -> num of questions, x_index.data.shape[2] -> seq length
         reshaped_indices = x_index.view(-1, x_index.size(2))
+        #print reshaped_indices
+        #that = torch.ge(reshaped_indices, self.vocab_size )
+        #print that
+        #print torch.nonzero(that.data)
+        #print "****"
 
         new_batch_size = reshaped_indices.size(0)
 

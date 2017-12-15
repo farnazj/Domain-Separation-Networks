@@ -232,7 +232,7 @@ def run_epoch(data, is_training, source_encoder, target_encoder, shared_encoder,
 
             print "Decoder loss in batch", decoder_loss.data
 
-            domain_classifier_loss = nll_loss(predicted_domains, true_domains)
+            domain_classifier_loss = F.cross_entropy(predicted_domains, true_domains)
             print "Domain loss in batch", domain_classifier_loss.data
 
             #calculate loss

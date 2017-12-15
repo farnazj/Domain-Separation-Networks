@@ -25,20 +25,19 @@ EMB_LEN = 300 #300
 MAX_BODY_LEN = 100
 
 SOS_TOKEN = 1
-EOS_TOKEN = 2
 
 
 def getEmbeddingTensor():
     global EMB_LEN
-    word2idx = {'SOS': SOS_TOKEN}
+    word2idx = {}
     embedding_tensor = []
-    for i in range(2): #for SOS and EOS
+    for i in range(1):
         embedding_tensor.append(np.zeros(EMB_LEN))
 
     zipf = ZipFile(PATH_EMB)
 
     with zipf.open(EMB_FNAME) as gfile:
-        for i, line in enumerate(gfile, start=3):
+        for i, line in enumerate(gfile, start=1):
             word, emb = line.split()[0], line.split()[1:]
             EMB_LEN = len(emb)
             vector = [float(x) for x in emb]
